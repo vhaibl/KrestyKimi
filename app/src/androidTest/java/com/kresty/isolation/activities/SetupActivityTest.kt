@@ -17,9 +17,13 @@ class SetupActivityTest {
 
     @Test
     fun launch_displaysPrimaryActionAndHiddenProgress() {
-        launch(SetupActivity::class.java)
+        val scenario = launch(SetupActivity::class.java)
 
-        onView(withId(R.id.startButton)).check(matches(isDisplayed()))
-        onView(withId(R.id.progressBar)).check(matches(withEffectiveVisibility(Visibility.GONE)))
+        try {
+            onView(withId(R.id.startButton)).check(matches(isDisplayed()))
+            onView(withId(R.id.progressBar)).check(matches(withEffectiveVisibility(Visibility.GONE)))
+        } finally {
+            scenario.close()
+        }
     }
 }

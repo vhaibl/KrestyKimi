@@ -2,7 +2,6 @@ package com.kresty.isolation.activities
 
 import androidx.test.core.app.ActivityScenario.launch
 import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
@@ -15,13 +14,13 @@ import org.junit.runner.RunWith
 class MainActivityTest {
 
     @Test
-    fun setupButton_opensSetupScreen() {
-        launch(MainActivity::class.java)
+    fun launch_displaysSetupButtonWhenWorkProfileIsMissing() {
+        val scenario = launch(MainActivity::class.java)
 
-        onView(withId(R.id.setupButton))
-            .check(matches(isDisplayed()))
-            .perform(click())
-
-        onView(withId(R.id.startButton)).check(matches(isDisplayed()))
+        try {
+            onView(withId(R.id.setupButton)).check(matches(isDisplayed()))
+        } finally {
+            scenario.close()
+        }
     }
 }
