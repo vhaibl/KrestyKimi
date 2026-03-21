@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="1dp"
+    app:contentPadding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- App Icon -->
+        <ImageView
+            android:id="@+id/appIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/app_name"
+            tools:src="@mipmap/ic_launcher" />
+
+        <!-- App Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/appName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Kresty.Title"
+                android:textSize="16sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Application Name" />
+
+            <TextView
+                android:id="@+id/appPackage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textAppearance="@style/TextAppearance.Kresty.Caption"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="com.example.app" />
+
+            <!-- Status Badge -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/statusChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/status_active"
+                android:textSize="11sp"
+                app:chipMinHeight="24dp"
+                app:chipBackgroundColor="@color/active"
+                android:textColor="@color/text_on_primary" />
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/freezeButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/freeze_app"
+                android:src="@drawable/ic_freeze"
+                android:padding="8dp" />
+
+            <ImageButton
+                android:id="@+id/deleteButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/remove_app"
+                android:src="@drawable/ic_delete"
+                android:padding="8dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

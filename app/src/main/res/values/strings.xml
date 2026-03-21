@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Кресты</string>
+    <string name="app_name_full">Кресты — Изоляция приложений</string>
+    
+    <!-- RuStore Console App ID - замените на ваш ID из консоли RuStore -->
+    <string name="rustore_console_app_id">123456</string>
+    
+    <!-- Device Admin -->
+    <string name="device_admin_label">Кресты Администратор</string>
+    <string name="device_admin_description">Требуется для создания изолированного рабочего профиля. Приложение не будет иметь доступа к личным данным.</string>
+    
+    <!-- Main Activity -->
+    <string name="welcome_title">Кресты</string>
+    <string name="welcome_subtitle">Изолируйте приложения без root</string>
+    <string name="setup_work_profile">Настроить рабочий профиль</string>
+    <string name="work_profile_active">Рабочий профиль активен</string>
+    <string name="work_profile_inactive">Рабочий профиль не настроен</string>
+    <string name="add_app">Добавить приложение</string>
+    <string name="remove_app">Удалить</string>
+    <string name="freeze_app">Заморозить</string>
+    <string name="unfreeze_app">Разморозить</string>
+    <string name="isolated_apps">Изолированные приложения</string>
+    <string name="no_apps">Нет изолированных приложений</string>
+    <string name="tap_to_add">Нажмите + чтобы добавить</string>
+    
+    <!-- App List -->
+    <string name="select_apps">Выберите приложения</string>
+    <string name="search_apps">Поиск приложений</string>
+    <string name="clone_app">Клонировать в профиль</string>
+    <string name="app_already_cloned">Уже в профиле</string>
+    <string name="system_app">Системное</string>
+    <string name="user_app">Пользовательское</string>
+    
+    <!-- Subscription -->
+    <string name="subscriptions">Подписки</string>
+    <string name="free_tier">Бесплатно</string>
+    <string name="free_description">1 приложение</string>
+    <string name="basic_tier">Базовая</string>
+    <string name="basic_description">3 приложения</string>
+    <string name="basic_price">89 ₽/месяц</string>
+    <string name="unlimited_tier">Безлимит</string>
+    <string name="unlimited_description">Без ограничений</string>
+    <string name="unlimited_price">479 ₽/месяц</string>
+    <string name="current_plan">Текущий план</string>
+    <string name="upgrade">Повысить</string>
+    <string name="subscribe">Подписаться</string>
+    <string name="manage_subscription">Управление подпиской</string>
+    <string name="limit_reached">Достигнут лимит приложений</string>
+    <string name="limit_reached_message">Чтобы добавить больше приложений, оформите подписку</string>
+    <string name="apps_count">%1$d / %2$d приложений</string>
+    <string name="unlimited_apps">Безлимит</string>
+    
+    <!-- Status -->
+    <string name="status_frozen">Заморожено</string>
+    <string name="status_active">Активно</string>
+    <string name="freezed_apps_count">Заморожено: %d</string>
+    
+    <!-- Errors -->
+    <string name="error_no_work_profile">Сначала настройте рабочий профиль</string>
+    <string name="error_provisioning_failed">Не удалось создать профиль</string>
+    <string name="error_app_not_found">Приложение не найдено</string>
+    <string name="error_billing">Ошибка оплаты</string>
+    <string name="error_generic">Произошла ошибка</string>
+    
+    <!-- Success -->
+    <string name="success_app_cloned">Приложение добавлено в профиль</string>
+    <string name="success_app_removed">Приложение удалено</string>
+    <string name="success_app_frozen">Приложение заморожено</string>
+    <string name="success_app_unfrozen">Приложение разморожено</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_confirm">Подтвердить</string>
+    <string name="dialog_cancel">Отмена</string>
+    <string name="dialog_remove_title">Удалить приложение?</string>
+    <string name="dialog_remove_message">Приложение будет удалено из рабочего профиля</string>
+    <string name="dialog_delete_work_profile">Удалить рабочий профиль?</string>
+    <string name="dialog_delete_work_profile_message">Все данные в рабочем профиле будут удалены. Это действие нельзя отменить.</string>
+    
+    <!-- Menu -->
+    <string name="menu_settings">Настройки</string>
+    <string name="menu_subscription">Подписка</string>
+    <string name="menu_delete_profile">Удалить профиль</string>
+    <string name="menu_about">О приложении</string>
+    
+    <!-- About -->
+    <string name="about_title">О приложении</string>
+    <string name="about_description">Кресты — простое приложение для изоляции других приложений с использованием встроенного рабочего профиля Android. Не требует root-прав.</string>
+    <string name="about_version">Версия %s</string>
+    <string name="about_privacy">Приложение не собирает личные данные. Все данные остаются на вашем устройстве.</string>
+    
+    <!-- Setup -->
+    <string name="setup_title">Настройка рабочего профиля</string>
+    <string name="setup_description">Кресты создаст отдельный рабочий профиль на вашем устройстве. Приложения в этом профиле будут изолированы от ваших личных данных.</string>
+    <string name="setup_step1">1. Нажмите кнопку ниже</string>
+    <string name="setup_step2">2. Подтвердите создание профиля</string>
+    <string name="setup_step3">3. Дождитесь завершения настройки</string>
+    <string name="setup_start">Создать рабочий профиль</string>
+    <string name="setup_progress">Создание профиля…</string>
+    
+    <!-- Billing -->
+    <string name="billing_not_supported">Покупки недоступны</string>
+    <string name="billing_not_supported_message">Встроенные покупки не поддерживаются на этом устройстве</string>
+    
+    <!-- Additional strings -->
+    <string name="downgrade">Понизить</string>
+    <string name="popular">Популярное</string>
+    <string name="best_value">Лучшая цена</string>
+</resources>

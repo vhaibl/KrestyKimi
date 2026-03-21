@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.kresty.isolation">
+
+    <!-- Permissions -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- <uses-permission android:name="android.permission.INTERNET" /> -->
+
+    <!-- Feature check for managed profiles -->
+    <uses-feature
+        android:name="android.software.managed_users"
+        android:required="false" />
+
+    <application
+        android:name=".KrestyApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Kresty"
+        tools:targetApi="29">
+
+        <!-- RuStore Console App ID - ОТКЛЮЧЕНО -->
+        <!--
+        <meta-data
+            android:name="console_app_id_value"
+            android:value="@string/rustore_console_app_id" />
+        -->
+
+        <!-- Main Activity -->
+        <activity
+            android:name=".activities.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            
+            <!-- Deeplink for RuStore payments - ОТКЛЮЧЕНО -->
+            <!--
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kresty" />
+            </intent-filter>
+            -->
+        </activity>
+
+        <!-- Setup Activity for Work Profile -->
+        <activity
+            android:name=".activities.SetupActivity"
+            android:exported="false"
+            android:label="@string/setup_work_profile" />
+
+        <!-- App List Activity -->
+        <activity
+            android:name=".activities.AppListActivity"
+            android:exported="false"
+            android:label="@string/select_apps" />
+
+        <!-- Subscription Activity - ОТКЛЮЧЕНО -->
+        <!--
+        <activity
+            android:name=".activities.SubscriptionActivity"
+            android:exported="false"
+            android:label="@string/subscriptions"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kresty" />
+            </intent-filter>
+        </activity>
+        -->
+
+        <!-- Device Admin Receiver -->
+        <receiver
+            android:name=".receivers.KrestyDeviceAdminReceiver"
+            android:description="@string/device_admin_description"
+            android:exported="true"
+            android:label="@string/device_admin_label"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_receiver" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.PROFILE_PROVISIONING_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Boot Receiver -->
+        <receiver
+            android:name=".receivers.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

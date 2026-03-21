@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    tools:context=".activities.MainActivity">
+
+    <!-- App Bar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary"
+        app:elevation="0dp">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:theme="@style/Widget.Kresty.Toolbar"
+            app:title="@string/app_name"
+            app:titleTextColor="@color/text_on_primary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Main Content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Status Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/statusCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:contentPadding="20dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <!-- Status Icon -->
+                    <ImageView
+                        android:id="@+id/statusIcon"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:src="@drawable/ic_work_profile"
+                        android:contentDescription="@string/work_profile_active" />
+
+                    <!-- Status Title -->
+                    <TextView
+                        android:id="@+id/statusTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/work_profile_inactive"
+                        android:textAppearance="@style/TextAppearance.Kresty.Title"
+                        android:textStyle="bold" />
+
+                    <!-- Status Description -->
+                    <TextView
+                        android:id="@+id/statusDescription"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Нажмите для настройки"
+                        android:textAppearance="@style/TextAppearance.Kresty.Body"
+                        android:gravity="center" />
+
+                    <!-- Setup Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/setupButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/setup_work_profile"
+                        app:icon="@drawable/ic_add" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Subscription Info Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/subscriptionCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="1dp"
+                app:contentPadding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/subscriptionTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/free_tier"
+                            android:textAppearance="@style/TextAppearance.Kresty.Title"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:id="@+id/subscriptionDescription"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/free_description"
+                            android:textAppearance="@style/TextAppearance.Kresty.Body"
+                            android:textSize="14sp" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/appsCountText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 / 1"
+                        android:textAppearance="@style/TextAppearance.Kresty.Body"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Isolated Apps Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/isolated_apps"
+                    android:textAppearance="@style/TextAppearance.Kresty.Title"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/frozenCountText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/freezed_apps_count"
+                    android:textAppearance="@style/TextAppearance.Kresty.Caption" />
+
+            </LinearLayout>
+
+            <!-- Empty State -->
+            <LinearLayout
+                android:id="@+id/emptyState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="32dp">
+
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@drawable/ic_empty"
+                    android:alpha="0.5"
+                    android:contentDescription="@string/no_apps" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/no_apps"
+                    android:textAppearance="@style/TextAppearance.Kresty.Body"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/tap_to_add"
+                    android:textAppearance="@style/TextAppearance.Kresty.Caption" />
+
+            </LinearLayout>
+
+            <!-- Apps RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/appsRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:visibility="gone"
+                tools:listitem="@layout/item_app" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- FAB for adding apps -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddApp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/add_app"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/accent"
+        app:tint="@color/text_on_primary" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

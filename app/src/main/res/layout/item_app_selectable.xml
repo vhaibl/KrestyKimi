@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="1dp"
+    app:contentPadding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- App Icon -->
+        <ImageView
+            android:id="@+id/appIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/app_name"
+            tools:src="@mipmap/ic_launcher" />
+
+        <!-- App Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/appName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Kresty.Title"
+                android:textSize="16sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Application Name" />
+
+            <TextView
+                android:id="@+id/appPackage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textAppearance="@style/TextAppearance.Kresty.Caption"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="com.example.app" />
+
+            <!-- App Type Badge -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/typeChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/user_app"
+                android:textSize="10sp"
+                app:chipMinHeight="20dp"
+                style="@style/Widget.Material3.Chip.Assist" />
+
+        </LinearLayout>
+
+        <!-- Add Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/clone_app"
+            android:textSize="12sp"
+            app:cornerRadius="8dp" />
+
+        <!-- Already Added Indicator -->
+        <TextView
+            android:id="@+id/alreadyAddedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_already_cloned"
+            android:textAppearance="@style/TextAppearance.Kresty.Caption"
+            android:textColor="@color/success"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

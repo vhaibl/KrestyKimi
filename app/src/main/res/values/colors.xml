@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary">#5C6BC0</color>
+    <color name="primary_dark">#3949AB</color>
+    <color name="primary_light">#8E99A4</color>
+    
+    <!-- Accent Colors -->
+    <color name="accent">#FF7043</color>
+    <color name="accent_light">#FFAB91</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#66BB6A</color>
+    <color name="warning">#FFA726</color>
+    <color name="error">#EF5350</color>
+    <color name="info">#42A5F5</color>
+    
+    <!-- Background Colors -->
+    <color name="background">#FAFAFA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="card_background">#FFFFFF</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_hint">#BDBDBD</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    
+    <!-- Divider -->
+    <color name="divider">#E0E0E0</color>
+    
+    <!-- Frozen status -->
+    <color name="frozen">#90A4AE</color>
+    <color name="active">#66BB6A</color>
+    
+    <!-- Subscription tiers -->
+    <color name="tier_free">#9E9E9E</color>
+    <color name="tier_basic">#42A5F5</color>
+    <color name="tier_unlimited">#FFA726</color>
+</resources>
