@@ -71,7 +71,6 @@ jobs:
           if-no-files-found: error
 
       - name: Send APK to Telegram
-        if: ${{ success() && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
         shell: bash
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -79,6 +78,10 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
           BUILD_VARIANT: ${{ steps.build_apk.outputs.variant }}
         run: |
+          if [[ -z "${TELEGRAM_BOT_TOKEN}" || -z "${TELEGRAM_CHAT_ID}" ]]; then
+            echo "Telegram secrets are not configured; skipping delivery."
+            exit 0
+          fi
           apk_path="$(find app/build/outputs/apk -type f -name '*.apk' | sort | head -n 1)"
           caption="KrestyKimi build status: success%0AVariant: ${BUILD_VARIANT}%0ACommit: ${COMMIT_SHA}"
           curl --fail --silent --show-error \
