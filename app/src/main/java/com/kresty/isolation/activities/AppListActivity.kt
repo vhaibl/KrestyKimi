@@ -12,6 +12,7 @@ import com.kresty.isolation.adapter.AppSelectionAdapter
 import com.kresty.isolation.databinding.ActivityAppListBinding
 import com.kresty.isolation.model.AppInfo
 // import com.kresty.isolation.utils.PreferencesManager
+import com.kresty.isolation.utils.AppSearchFilter
 import com.kresty.isolation.utils.WorkProfileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -101,15 +102,8 @@ class AppListActivity : AppCompatActivity() {
     }
 
     private fun filterApps(query: String?) {
-        currentApps = if (query.isNullOrBlank()) {
-            allApps
-        } else {
-            allApps.filter { app ->
-                app.appName.contains(query, ignoreCase = true) ||
-                app.packageName.contains(query, ignoreCase = true)
-            }
-        }
-        
+        currentApps = AppSearchFilter.filter(allApps, query)
+
         if (currentApps.isEmpty()) {
             binding.emptyState.visibility = View.VISIBLE
             binding.recyclerView.visibility = View.GONE

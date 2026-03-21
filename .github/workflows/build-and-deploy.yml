@@ -1,0 +1,88 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: Skip unit and instrumented tests for a hotfix build
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK API 33
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses and install packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
+        run: ./gradlew test
+
+      - name: Run instrumented tests on API 29 emulator
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          profile: pixel_4
+          script: ./gradlew connectedAndroidTest
+
+      - name: Build APK
+        id: build_apk
+        shell: bash
+        run: |
+          if ./gradlew assembleRelease; then
+            echo "variant=release" >> "$GITHUB_OUTPUT"
+          else
+            ./gradlew assembleDebug
+            echo "variant=debug" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: krestykimi-apk
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      - name: Send APK to Telegram
+        if: ${{ success() && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+          BUILD_VARIANT: ${{ steps.build_apk.outputs.variant }}
+        run: |
+          apk_path="$(find app/build/outputs/apk -type f -name '*.apk' | sort | head -n 1)"
+          caption="KrestyKimi build status: success%0AVariant: ${BUILD_VARIANT}%0ACommit: ${COMMIT_SHA}"
+          curl --fail --silent --show-error \
+            -F "chat_id=${TELEGRAM_CHAT_ID}" \
+            -F "caption=${caption}" \
+            -F "document=@${apk_path}" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
