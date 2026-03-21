@@ -50,7 +50,11 @@ jobs:
           api-level: 29
           arch: x86_64
           profile: pixel_4
-          script: ./gradlew connectedAndroidTest -Pandroid.experimental.androidTest.useUnifiedTestPlatform=false
+          script: |
+            ./gradlew assembleDebug assembleDebugAndroidTest
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w com.kresty.isolation.test/androidx.test.runner.AndroidJUnitRunner
 
       - name: Build APK
         id: build_apk
