@@ -86,7 +86,18 @@ jobs:
             echo "Telegram secrets are not configured; skipping delivery."
             exit 0
           fi
-          apk_path="$(find app/build/outputs/apk -type f -name '*.apk' | sort | head -n 1)"
+          if [[ "${BUILD_VARIANT}" == "release" ]]; then
+            apk_path="app/build/outputs/apk/release/app-release.apk"
+          else
+            apk_path="app/build/outputs/apk/debug/app-debug.apk"
+          fi
+          if [[ ! -f "${apk_path}" ]]; then
+            apk_path="$(find app/build/outputs/apk -type f -name 'app-*.apk' ! -name '*androidTest*' | sort | head -n 1)"
+          fi
+          if [[ -z "${apk_path}" || ! -f "${apk_path}" ]]; then
+            echo "No application APK found for Telegram delivery."
+            exit 1
+          fi
           caption="KrestyKimi build status: success%0AVariant: ${BUILD_VARIANT}%0ACommit: ${COMMIT_SHA}"
           curl --fail --silent --show-error \
             -F "chat_id=${TELEGRAM_CHAT_ID}" \
