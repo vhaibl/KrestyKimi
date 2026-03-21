@@ -33,7 +33,7 @@ class MainActivity : AppCompatActivity() {
     
     private val profileReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == KrestyDeviceAdminReceiver.Actions.ACTION_PROFILE_READY) {
+            if (intent?.action == KrestyDeviceAdminReceiver.ACTION_PROFILE_READY) {
                 updateUI()
             }
         }
@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         setupClickListeners()
         
         // Register broadcast receiver
-        registerReceiver(profileReceiver, IntentFilter(KrestyDeviceAdminReceiver.Actions.ACTION_PROFILE_READY))
+        registerReceiver(profileReceiver, IntentFilter(KrestyDeviceAdminReceiver.ACTION_PROFILE_READY))
         
         // Initialize RuStore Billing - ОТКЛЮЧЕНО
         // billingManager.initialize()
@@ -85,12 +85,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.menu_subscription -> {
-                // Монетизация отключена - показываем сообщение
-                Toast.makeText(this, "Подписки временно недоступны", Toast.LENGTH_SHORT).show()
-                // startActivity(Intent(this, SubscriptionActivity::class.java))
-                true
-            }
             R.id.menu_delete_profile -> {
                 showDeleteProfileDialog()
                 true

@@ -14,6 +14,7 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
 
     companion object {
         private const val TAG = "KrestyDeviceAdmin"
+        const val ACTION_PROFILE_READY = "com.kresty.isolation.PROFILE_READY"
 
         fun getComponentName(context: Context): ComponentName {
             return ComponentName(context, KrestyDeviceAdminReceiver::class.java)
@@ -96,9 +97,5 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
                 Log.w(TAG, "Could not enable $pkg: ${e.message}")
             }
         }
-    }
-
-    companion object Actions {
-        const val ACTION_PROFILE_READY = "com.kresty.isolation.PROFILE_READY"
     }
 }
