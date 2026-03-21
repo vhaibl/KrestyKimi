@@ -50,7 +50,7 @@ jobs:
           api-level: 29
           arch: x86_64
           profile: pixel_4
-          script: ./gradlew connectedAndroidTest
+          script: ./gradlew connectedAndroidTest -Pandroid.experimental.androidTest.useUnifiedTestPlatform=false
 
       - name: Build APK
         id: build_apk
