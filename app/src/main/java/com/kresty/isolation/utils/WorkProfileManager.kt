@@ -116,8 +116,7 @@ class WorkProfileManager(private val context: Context) {
 
         repairLegacyManagedStateIfNeeded()
 
-        val removedHiddenPackages = prefs.getRemovedHiddenApps()
-        val unavailablePackages = (getVisiblePackagesInManagedProfile() - removedHiddenPackages) +
+        val unavailablePackages = prefs.getManagedProfileBaselineApps() +
             prefs.getManagedApps() +
             context.packageName
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
