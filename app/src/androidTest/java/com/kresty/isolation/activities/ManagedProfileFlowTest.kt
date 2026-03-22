@@ -145,8 +145,16 @@ class ManagedProfileFlowTest {
             val recyclerView = view as? RecyclerView
                 ?: throw AssertionError("Expected RecyclerView but was ${view?.javaClass?.name}")
             check(recyclerView.adapter != null) { "RecyclerView has no adapter" }
+            val prefs = PreferencesManager(ApplicationProvider.getApplicationContext())
+            val debugState = buildString {
+                append("managed=${prefs.getManagedApps()}")
+                append(", removedHidden=${prefs.getRemovedHiddenApps()}")
+                append(", baseline=${prefs.getManagedProfileBaselineApps()}")
+                append(", frozen=${prefs.getFrozenApps()}")
+                append(", workProfileCreated=${prefs.isWorkProfileCreated()}")
+            }
             check(recyclerView.adapter!!.itemCount >= expectedMinimum) {
-                "Expected at least $expectedMinimum items but was ${recyclerView.adapter!!.itemCount}"
+                "Expected at least $expectedMinimum items but was ${recyclerView.adapter!!.itemCount}; $debugState"
             }
         }
     }
