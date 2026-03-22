@@ -184,6 +184,6 @@ class PreferencesManager(context: Context) {
      * Clear all preferences
      */
     fun clear() {
-        prefs.edit().clear().apply()
+        editSync { clear() }
     }
 }
