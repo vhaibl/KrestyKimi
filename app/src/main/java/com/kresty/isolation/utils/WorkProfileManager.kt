@@ -42,6 +42,7 @@ class WorkProfileManager(private val context: Context) {
         val managedProfile = getManagedProfileHandle()
         if (managedProfile == null && prefs.isWorkProfileCreated()) {
             prefs.setWorkProfileCreated(false)
+            prefs.setManagedApps(emptySet())
         }
         return managedProfile != null
     }
