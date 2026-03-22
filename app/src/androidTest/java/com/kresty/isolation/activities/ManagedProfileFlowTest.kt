@@ -5,7 +5,6 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario.launch
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.UiController
 import androidx.test.espresso.ViewAction
 import androidx.test.espresso.ViewAssertion
@@ -62,8 +61,6 @@ class ManagedProfileFlowTest {
                 )
             )
 
-            pressBack()
-
             onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
             onView(withId(R.id.appsRecyclerView)).perform(
                 RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
@@ -108,8 +105,6 @@ class ManagedProfileFlowTest {
                     clickChildViewWithId(R.id.addButton)
                 )
             )
-
-            pressBack()
 
             onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
             onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))

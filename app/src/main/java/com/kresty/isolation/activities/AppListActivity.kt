@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -48,6 +49,15 @@ class AppListActivity : AppCompatActivity() {
             finish()
             return
         }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (pendingPackageName != null) {
+                    return
+                }
+                finish()
+            }
+        })
 
         setupRecyclerView()
         setupSearchView()
@@ -115,6 +125,10 @@ class AppListActivity : AppCompatActivity() {
     }
 
     private fun addAppToWorkProfile(app: AppInfo) {
+        if (pendingPackageName != null) {
+            return
+        }
+
         if (workProfileManager.isProfileOwner()) {
             val success = workProfileManager.cloneAppToWorkProfile(app.packageName)
             if (success) {
@@ -149,6 +163,10 @@ class AppListActivity : AppCompatActivity() {
         if (success && !packageName.isNullOrBlank()) {
             workProfileManager.markAppManaged(packageName)
             Toast.makeText(this, R.string.success_app_cloned, Toast.LENGTH_SHORT).show()
+            pendingPackageName = null
+            setResult(Activity.RESULT_OK)
+            finish()
+            return
         } else {
             val errorMessage = data?.getStringExtra(WorkProfileBridge.EXTRA_ERROR_MESSAGE)
             Toast.makeText(this, errorMessage ?: getString(R.string.error_generic), Toast.LENGTH_LONG).show()
