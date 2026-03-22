@@ -33,7 +33,9 @@ For channels, you may need to add the bot as an administrator before Telegram ac
 2. Go to `Actions`.
 3. Select the `Build and Deploy` workflow.
 4. Click `Run workflow`.
-5. Optionally set `skip_tests` to `true` for a hotfix build that bypasses `./gradlew test` and `./gradlew connectedAndroidTest`.
+5. Optionally set `skip_tests` to `true` for a hotfix build that bypasses `./gradlew test` and the emulator instrumentation step.
+
+When `skip_tests=true`, the workflow can still build, upload, and deliver the APK, but it intentionally ends in a failed `unvalidated` state. This prevents a green run from ever meaning "tests were skipped".
 
 ## Triggered Branches
 

@@ -1,4 +1,10 @@
 name: Build and Deploy
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch' && inputs.skip_tests &&
+    format('Build and Deploy (UNVALIDATED hotfix) · {0}', github.ref_name) ||
+    format('Build and Deploy · {0}', github.ref_name)
+  }}
 
 on:
   push:
@@ -78,14 +84,37 @@ jobs:
           set -euo pipefail
 
           apksigner_path="$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/build-tools" -type f -name apksigner | sort | tail -n 1)"
+          keystore_path="app/signing/krestykimi-release.jks"
+          expected_cert_sha256="$(
+            keytool -list -v \
+              -keystore "${keystore_path}" \
+              -storepass "${KRESTYKIMI_RELEASE_STORE_PASSWORD:-krestykimi-release}" \
+              | sed -n 's/^[[:space:]]*SHA256: //p' \
+              | head -n 1
+          )"
+
+          if [[ -z "${expected_cert_sha256}" ]]; then
+            echo "Failed to read signing certificate fingerprint from ${keystore_path}."
+            exit 1
+          fi
 
           if ./gradlew assembleRelease; then
-            release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name 'app-release*.apk' | sort | head -n 1 || true)"
-            if [[ -n "${release_apk}" && -f "${release_apk}" ]] && "${apksigner_path}" verify --print-certs "${release_apk}" >/dev/null 2>&1; then
+            release_apk="app/build/outputs/apk/release/app-release.apk"
+            if [[ -f "${release_apk}" ]] && "${apksigner_path}" verify --print-certs "${release_apk}" >/dev/null 2>&1; then
+              apk_cert_sha256="$(
+                "${apksigner_path}" verify --print-certs "${release_apk}" 2>/dev/null \
+                  | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
+                  | head -n 1
+              )"
+            else
+              apk_cert_sha256=""
+            fi
+
+            if [[ -n "${apk_cert_sha256}" && "${apk_cert_sha256}" == "${expected_cert_sha256}" ]]; then
               echo "variant=release" >> "$GITHUB_OUTPUT"
               echo "apk_path=${release_apk}" >> "$GITHUB_OUTPUT"
             else
-              echo "Release APK is missing or unsigned; falling back to debug APK."
+              echo "Release APK is missing, unsigned, or signed with an unexpected certificate; falling back to debug APK."
               ./gradlew assembleDebug
               debug_apk="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name 'app-debug*.apk' ! -name '*androidTest*' | sort | head -n 1)"
               echo "variant=debug" >> "$GITHUB_OUTPUT"
@@ -113,6 +142,7 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
           BUILD_VARIANT: ${{ steps.build_apk.outputs.variant }}
           APK_PATH: ${{ steps.build_apk.outputs.apk_path }}
+          SKIP_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_tests }}
         run: |
           set -euo pipefail
           if [[ -z "${TELEGRAM_BOT_TOKEN}" || -z "${TELEGRAM_CHAT_ID}" ]]; then
@@ -123,9 +153,20 @@ jobs:
             echo "No application APK found for Telegram delivery."
             exit 1
           fi
-          caption="KrestyKimi build status: success%0AVariant: ${BUILD_VARIANT}%0ACommit: ${COMMIT_SHA}"
+          if [[ "${SKIP_TESTS}" == "true" ]]; then
+            status="unvalidated (tests skipped)"
+          else
+            status="success"
+          fi
+          caption="KrestyKimi build status: ${status}%0AVariant: ${BUILD_VARIANT}%0ACommit: ${COMMIT_SHA}"
           curl --fail --silent --show-error \
             -F "chat_id=${TELEGRAM_CHAT_ID}" \
             -F "caption=${caption}" \
             -F "document=@${APK_PATH}" \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+
+      - name: Mark skipped-tests build as unvalidated
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_tests }}
+        run: |
+          echo "::error::This hotfix build skipped unit and instrumented tests. Artifact delivery is allowed, but the workflow must not be treated as a passing validation run."
+          exit 1

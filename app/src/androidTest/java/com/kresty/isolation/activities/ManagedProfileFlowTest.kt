@@ -12,6 +12,7 @@ import androidx.test.espresso.ViewAssertion
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.contrib.RecyclerViewActions
+import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -37,6 +38,7 @@ class ManagedProfileFlowTest {
     fun managedProfileFlow_addFreezeUnfreezeAndRemoveFirstAvailableApp() {
         val scenario = launch(MainActivity::class.java)
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        var selectedPackage: String? = null
 
         try {
             onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
@@ -44,6 +46,9 @@ class ManagedProfileFlowTest {
             onView(withId(R.id.fabAddApp)).perform(click())
 
             onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
+            onView(withId(R.id.recyclerView)).perform(
+                captureTextFromItemAtPosition(0, R.id.appPackage) { selectedPackage = it }
+            )
             onView(withId(R.id.recyclerView)).perform(
                 RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
                     0,
@@ -85,6 +90,33 @@ class ManagedProfileFlowTest {
 
             onView(withId(R.id.fabAddApp)).perform(click())
             onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
+            val removedPackage = checkNotNull(selectedPackage) { "Expected selected package to be captured" }
+            onView(withId(R.id.recyclerView)).perform(
+                RecyclerViewActions.scrollTo<RecyclerView.ViewHolder>(
+                    hasDescendant(withText(removedPackage))
+                )
+            )
+            onView(withText(removedPackage)).check(matches(isDisplayed()))
+            onView(withId(R.id.recyclerView)).perform(
+                RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
+                    hasDescendant(withText(removedPackage)),
+                    clickChildViewWithId(R.id.addButton)
+                )
+            )
+
+            pressBack()
+
+            onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
+            onView(withText(removedPackage)).check(matches(isDisplayed()))
+            onView(withId(R.id.appsRecyclerView)).perform(
+                RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
+                    hasDescendant(withText(removedPackage)),
+                    clickChildViewWithId(R.id.freezeButton)
+                )
+            )
+            onView(withId(R.id.frozenCountText)).check(
+                matches(withText(appContext.getString(R.string.freezed_apps_count, 1)))
+            )
         } finally {
             scenario.close()
         }
@@ -115,6 +147,32 @@ class ManagedProfileFlowTest {
             check(recyclerView.adapter != null) { "RecyclerView has no adapter" }
             check(recyclerView.adapter!!.itemCount >= expectedMinimum) {
                 "Expected at least $expectedMinimum items but was ${recyclerView.adapter!!.itemCount}"
+            }
+        }
+    }
+
+    private fun captureTextFromItemAtPosition(
+        position: Int,
+        viewId: Int,
+        onTextCaptured: (String) -> Unit
+    ): ViewAction {
+        return object : ViewAction {
+            override fun getConstraints(): Matcher<View> = isDisplayed()
+
+            override fun getDescription(): String = "capture text from child view $viewId at position $position"
+
+            override fun perform(uiController: UiController, view: View) {
+                val recyclerView = view as? RecyclerView
+                    ?: throw AssertionError("Expected RecyclerView but was ${view.javaClass.name}")
+                recyclerView.scrollToPosition(position)
+                uiController.loopMainThreadUntilIdle()
+                val holder = recyclerView.findViewHolderForAdapterPosition(position)
+                    ?: throw AssertionError("No ViewHolder at position $position")
+                val child = holder.itemView.findViewById<View>(viewId)
+                    ?: throw AssertionError("No child view with id $viewId at position $position")
+                val text = (child as? android.widget.TextView)?.text?.toString()
+                    ?: throw AssertionError("Expected TextView for id $viewId")
+                onTextCaptured(text)
             }
         }
     }

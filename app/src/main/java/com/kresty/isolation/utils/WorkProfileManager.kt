@@ -96,18 +96,14 @@ class WorkProfileManager(private val context: Context) {
         repairLegacyManagedStateIfNeeded()
 
         val visibleManagedPackages = getVisiblePackagesInManagedProfile()
-        val managedPackages = prefs.getManagedApps()
-        val validManagedPackages = managedPackages.filterTo(linkedSetOf()) { packageName ->
-            prefs.isAppFrozen(packageName) || visibleManagedPackages.contains(packageName)
-        }
-        val stalePackages = managedPackages - validManagedPackages
-        if (stalePackages.isNotEmpty()) {
-            prefs.setManagedApps(validManagedPackages)
-            prefs.setFrozenApps(prefs.getFrozenApps() - stalePackages)
-        }
 
-        return validManagedPackages
-            .mapNotNull(::buildDisplayAppInfo)
+        return prefs.getManagedApps()
+            .mapNotNull { packageName ->
+                buildDisplayAppInfo(
+                    packageName = packageName,
+                    isInstalledInWorkProfile = prefs.isAppFrozen(packageName) || visibleManagedPackages.contains(packageName)
+                )
+            }
             .sortedBy { it.appName.lowercase() }
     }
 
@@ -116,7 +112,7 @@ class WorkProfileManager(private val context: Context) {
 
         repairLegacyManagedStateIfNeeded()
 
-        val unavailablePackages = prefs.getManagedProfileBaselineApps() +
+        val unavailablePackages = (prefs.getManagedProfileBaselineApps() - prefs.getRemovedHiddenApps()) +
             prefs.getManagedApps() +
             context.packageName
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -287,7 +283,7 @@ class WorkProfileManager(private val context: Context) {
 
     fun getFrozenAppsCount(): Int = getWorkProfileApps().count { it.isFrozen }
 
-    private fun buildDisplayAppInfo(packageName: String): AppInfo? {
+    private fun buildDisplayAppInfo(packageName: String, isInstalledInWorkProfile: Boolean = true): AppInfo? {
         return try {
             val ownerAppInfo = packageManager.getApplicationInfo(packageName, 0)
             AppInfo(
@@ -295,7 +291,7 @@ class WorkProfileManager(private val context: Context) {
                 appName = packageManager.getApplicationLabel(ownerAppInfo).toString(),
                 icon = packageManager.getApplicationIcon(ownerAppInfo),
                 isSystemApp = (ownerAppInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
-                isInstalledInWorkProfile = true,
+                isInstalledInWorkProfile = isInstalledInWorkProfile,
                 isFrozen = prefs.isAppFrozen(packageName)
             )
         } catch (_: PackageManager.NameNotFoundException) {
