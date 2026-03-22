@@ -96,7 +96,7 @@ class WorkProfileManager(private val context: Context) {
         val visibleManagedPackages = getVisiblePackagesInManagedProfile()
         val managedPackages = prefs.getManagedApps()
         val validManagedPackages = managedPackages.filterTo(linkedSetOf()) { packageName ->
-            prefs.isAppFrozen(packageName) || visibleManagedPackages.contains(packageName) || canResolveOwnerPackage(packageName)
+            prefs.isAppFrozen(packageName) || visibleManagedPackages.contains(packageName)
         }
         val stalePackages = managedPackages - validManagedPackages
         if (stalePackages.isNotEmpty()) {
@@ -289,15 +289,6 @@ class WorkProfileManager(private val context: Context) {
             )
         } catch (_: PackageManager.NameNotFoundException) {
             null
-        }
-    }
-
-    private fun canResolveOwnerPackage(packageName: String): Boolean {
-        return try {
-            packageManager.getApplicationInfo(packageName, 0)
-            true
-        } catch (_: PackageManager.NameNotFoundException) {
-            false
         }
     }
 

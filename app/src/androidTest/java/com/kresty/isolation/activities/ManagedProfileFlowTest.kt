@@ -82,6 +82,9 @@ class ManagedProfileFlowTest {
             )
             onView(withText(R.string.dialog_confirm)).perform(click())
             onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
+
+            onView(withId(R.id.fabAddApp)).perform(click())
+            onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
         } finally {
             scenario.close()
         }
