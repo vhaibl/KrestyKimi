@@ -96,11 +96,20 @@ class WorkProfileManager(private val context: Context) {
     fun getWorkProfileApps(): List<AppInfo> {
         if (!hasWorkProfile() || isProfileOwner()) return emptyList()
 
+        if (prefs.getManagedApps().isEmpty()) {
+            return emptyList()
+        }
+
         repairLegacyManagedStateIfNeeded()
+
+        val managedPackages = prefs.getManagedApps()
+        if (managedPackages.isEmpty()) {
+            return emptyList()
+        }
 
         val visibleManagedPackages = getVisiblePackagesInManagedProfile()
 
-        return prefs.getManagedApps()
+        return managedPackages
             .mapNotNull { packageName ->
                 buildDisplayAppInfo(
                     packageName = packageName,
