@@ -12,6 +12,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_SUBSCRIPTION_TIER = "subscription_tier"
         private const val KEY_FROZEN_APPS = "frozen_apps"
         private const val KEY_MANAGED_APPS = "managed_apps"
+        private const val KEY_MANAGED_PROFILE_BASELINE_APPS = "managed_profile_baseline_apps"
         private const val KEY_WORK_PROFILE_CREATED = "work_profile_created"
         private const val KEY_FIRST_LAUNCH = "first_launch"
         
@@ -94,6 +95,14 @@ class PreferencesManager(context: Context) {
         prefs.edit().putStringSet(KEY_MANAGED_APPS, packageNames).apply()
     }
 
+    fun getManagedProfileBaselineApps(): Set<String> {
+        return prefs.getStringSet(KEY_MANAGED_PROFILE_BASELINE_APPS, emptySet()) ?: emptySet()
+    }
+
+    fun setManagedProfileBaselineApps(packageNames: Set<String>) {
+        prefs.edit().putStringSet(KEY_MANAGED_PROFILE_BASELINE_APPS, packageNames).apply()
+    }
+
     /**
      * Remove app from managed list
      */
@@ -119,6 +128,10 @@ class PreferencesManager(context: Context) {
         val frozen = getFrozenApps().toMutableSet()
         frozen.remove(packageName)
         prefs.edit().putStringSet(KEY_FROZEN_APPS, frozen).apply()
+    }
+
+    fun setFrozenApps(packageNames: Set<String>) {
+        prefs.edit().putStringSet(KEY_FROZEN_APPS, packageNames).apply()
     }
 
     /**

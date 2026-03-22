@@ -9,12 +9,13 @@ import com.kresty.isolation.activities.WorkProfileBridgeActivity
 import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
 
 object WorkProfileBridge {
+    const val PERMISSION_MANAGE_WORK_PROFILE = "com.kresty.isolation.permission.MANAGE_WORK_PROFILE"
     const val ACTION_MANAGE = "com.kresty.isolation.action.MANAGE_WORK_PROFILE"
 
     const val EXTRA_OPERATION = "extra_operation"
     const val EXTRA_PACKAGE_NAME = "extra_package_name"
     const val EXTRA_SUCCESS = "extra_success"
-    const val EXTRA_STAGED_APK_URI = "extra_staged_apk_uri"
+    const val EXTRA_IS_SYSTEM_APP = "extra_is_system_app"
     const val EXTRA_ERROR_MESSAGE = "extra_error_message"
 
     const val OP_CLONE = "clone"
@@ -33,7 +34,9 @@ object WorkProfileBridge {
     }
 
     fun buildManageIntentFilter(): IntentFilter {
-        return IntentFilter(ACTION_MANAGE)
+        return IntentFilter(ACTION_MANAGE).apply {
+            addCategory(Intent.CATEGORY_DEFAULT)
+        }
     }
 
     fun syncBridgeComponentState(context: Context) {

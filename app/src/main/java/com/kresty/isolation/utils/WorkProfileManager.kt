@@ -1,7 +1,6 @@
 package com.kresty.isolation.utils
 
 import android.app.admin.DevicePolicyManager
-import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -9,15 +8,12 @@ import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Process
 import android.os.UserHandle
 import android.util.Log
-import androidx.core.content.FileProvider
 import com.kresty.isolation.model.AppInfo
 import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
-import java.io.File
 
 class WorkProfileManager(private val context: Context) {
 
@@ -43,6 +39,8 @@ class WorkProfileManager(private val context: Context) {
         if (managedProfile == null && prefs.isWorkProfileCreated()) {
             prefs.setWorkProfileCreated(false)
             prefs.setManagedApps(emptySet())
+            prefs.setFrozenApps(emptySet())
+            prefs.setManagedProfileBaselineApps(emptySet())
         }
         return managedProfile != null
     }
@@ -53,6 +51,11 @@ class WorkProfileManager(private val context: Context) {
 
     fun setWorkProfileCreated(created: Boolean) {
         prefs.setWorkProfileCreated(created)
+        if (!created) {
+            prefs.setManagedApps(emptySet())
+            prefs.setFrozenApps(emptySet())
+            prefs.setManagedProfileBaselineApps(emptySet())
+        }
     }
 
     fun ensureCrossProfileIntentFilters() {
@@ -86,32 +89,39 @@ class WorkProfileManager(private val context: Context) {
     }
 
     fun getWorkProfileApps(): List<AppInfo> {
-        if (!hasWorkProfile()) return emptyList()
+        if (!hasWorkProfile() || isProfileOwner()) return emptyList()
 
+        repairLegacyManagedStateIfNeeded()
+
+        val visibleManagedPackages = getVisiblePackagesInManagedProfile()
         val managedPackages = prefs.getManagedApps()
-        val activePackages = managedPackages.filter(::isInstalledInManagedProfile)
-        val stalePackages = managedPackages - activePackages.toSet()
-        stalePackages.forEach { packageName ->
-            prefs.removeManagedApp(packageName)
-            prefs.removeFrozenApp(packageName)
+        val validManagedPackages = managedPackages.filterTo(linkedSetOf()) { packageName ->
+            prefs.isAppFrozen(packageName) || visibleManagedPackages.contains(packageName) || canResolveOwnerPackage(packageName)
+        }
+        val stalePackages = managedPackages - validManagedPackages
+        if (stalePackages.isNotEmpty()) {
+            prefs.setManagedApps(validManagedPackages)
+            prefs.setFrozenApps(prefs.getFrozenApps() - stalePackages)
         }
 
-        return activePackages
+        return validManagedPackages
             .mapNotNull(::buildDisplayAppInfo)
             .sortedBy { it.appName.lowercase() }
     }
 
     fun getAvailableAppsToClone(): List<AppInfo> {
-        if (!hasWorkProfile()) return emptyList()
+        if (!hasWorkProfile() || isProfileOwner()) return emptyList()
 
-        val unavailablePackages = prefs.getManagedApps()
+        repairLegacyManagedStateIfNeeded()
+
+        val unavailablePackages = getVisiblePackagesInManagedProfile() + prefs.getManagedApps() + context.packageName
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
 
         return packageManager.queryIntentActivities(launcherIntent, 0)
             .asSequence()
             .mapNotNull { resolveInfo ->
                 val packageName = resolveInfo.activityInfo.packageName
-                if (packageName == context.packageName || unavailablePackages.contains(packageName)) {
+                if (packageName in unavailablePackages) {
                     return@mapNotNull null
                 }
 
@@ -121,19 +131,11 @@ class WorkProfileManager(private val context: Context) {
                     return@mapNotNull null
                 }
 
-                val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                if (isSystemApp && !isEssentialSystemApp(packageName)) {
-                    return@mapNotNull null
-                }
-                if (!isSystemApp && !appInfo.splitPublicSourceDirs.isNullOrEmpty()) {
-                    return@mapNotNull null
-                }
-
                 AppInfo(
                     packageName = packageName,
                     appName = packageManager.getApplicationLabel(appInfo).toString(),
                     icon = packageManager.getApplicationIcon(appInfo),
-                    isSystemApp = isSystemApp
+                    isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 )
             }
             .distinctBy { it.packageName }
@@ -142,15 +144,10 @@ class WorkProfileManager(private val context: Context) {
     }
 
     fun buildProfileActionIntent(action: String, app: AppInfo): Intent? {
-        if (!hasWorkProfile()) return null
+        if (!hasWorkProfile() || isProfileOwner()) return null
 
         return WorkProfileBridge.buildManageIntent(action, app.packageName).apply {
-            if (action == WorkProfileBridge.OP_CLONE && !app.isSystemApp) {
-                val stagedApkUri = stageBaseApk(app.packageName) ?: return null
-                putExtra(WorkProfileBridge.EXTRA_STAGED_APK_URI, stagedApkUri.toString())
-                clipData = ClipData.newUri(context.contentResolver, "Staged APK", stagedApkUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+            putExtra(WorkProfileBridge.EXTRA_IS_SYSTEM_APP, app.isSystemApp)
         }
     }
 
@@ -171,8 +168,9 @@ class WorkProfileManager(private val context: Context) {
         prefs.removeFrozenApp(packageName)
     }
 
-    fun cloneAppToWorkProfile(packageName: String): Boolean {
+    fun cloneAppToWorkProfile(packageName: String, isSystemApp: Boolean = isSystemApp(packageName)): Boolean {
         if (!isProfileOwner()) return false
+
         if (isPackageInstalledInCurrentProfile(packageName)) {
             return if (isApplicationHidden(packageName)) {
                 setAppHiddenLocally(packageName, false)
@@ -181,8 +179,11 @@ class WorkProfileManager(private val context: Context) {
             }
         }
 
-        return cloneSystemAppToCurrentProfile(packageName) ||
-            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && installExistingPackage(packageName))
+        return if (isSystemApp) {
+            cloneSystemAppToCurrentProfile(packageName)
+        } else {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && installExistingPackage(packageName)
+        }
     }
 
     fun freezeApp(packageName: String): Boolean {
@@ -253,17 +254,6 @@ class WorkProfileManager(private val context: Context) {
         }
     }
 
-    fun buildPackageInstallIntent(packageName: String, stagedApkUri: Uri?): Intent? {
-        val apkUri = stagedApkUri ?: stageBaseApk(packageName) ?: return null
-        return Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-            data = apkUri
-            clipData = ClipData.newUri(context.contentResolver, "Staged APK", apkUri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            putExtra(Intent.EXTRA_RETURN_RESULT, true)
-            putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
-        }.takeIf { it.resolveActivity(packageManager) != null }
-    }
-
     fun setAppHiddenLocally(packageName: String, hidden: Boolean): Boolean {
         return try {
             dpm.setApplicationHidden(adminComponent, packageName, hidden)
@@ -302,25 +292,36 @@ class WorkProfileManager(private val context: Context) {
         }
     }
 
-    private fun isInstalledInManagedProfile(packageName: String): Boolean {
-        if (isProfileOwner()) {
-            return isPackageInstalledInCurrentProfile(packageName)
-        }
-
-        val profileHandle = getManagedProfileHandle() ?: return false
+    private fun canResolveOwnerPackage(packageName: String): Boolean {
         return try {
-            val appInfo = launcherApps.getApplicationInfo(
-                packageName,
-                PackageManager.MATCH_UNINSTALLED_PACKAGES,
-                profileHandle
-            )
-            (appInfo.flags and ApplicationInfo.FLAG_INSTALLED) != 0
+            packageManager.getApplicationInfo(packageName, 0)
+            true
         } catch (_: PackageManager.NameNotFoundException) {
             false
-        } catch (e: Exception) {
-            Log.w(TAG, "Unable to inspect $packageName in managed profile: ${e.message}")
-            false
         }
+    }
+
+    private fun getVisiblePackagesInManagedProfile(): Set<String> {
+        return if (isProfileOwner()) {
+            getVisibleLauncherPackagesInCurrentProfile()
+        } else {
+            val profileHandle = getManagedProfileHandle() ?: return emptySet()
+            try {
+                launcherApps.getActivityList(null, profileHandle)
+                    .map { it.applicationInfo.packageName }
+                    .toSet()
+            } catch (e: Exception) {
+                Log.w(TAG, "Unable to query managed-profile launcher apps: ${e.message}")
+                emptySet()
+            }
+        }
+    }
+
+    private fun getVisibleLauncherPackagesInCurrentProfile(): Set<String> {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        return packageManager.queryIntentActivities(launcherIntent, 0)
+            .map { it.activityInfo.packageName }
+            .toSet()
     }
 
     private fun getManagedProfileHandle(): UserHandle? {
@@ -332,44 +333,25 @@ class WorkProfileManager(private val context: Context) {
         }
     }
 
-    private fun stageBaseApk(packageName: String): Uri? {
-        val appInfo = try {
-            packageManager.getApplicationInfo(packageName, 0)
-        } catch (_: PackageManager.NameNotFoundException) {
-            return null
-        }
+    private fun repairLegacyManagedStateIfNeeded() {
+        if (isProfileOwner()) return
 
-        val sourceApk = appInfo.publicSourceDir ?: appInfo.sourceDir ?: return null
-        val stagingDir = File(context.cacheDir, "cloned-apks/$packageName").apply {
-            mkdirs()
-        }
-        val targetApk = File(stagingDir, "base.apk")
+        val visiblePackages = getVisiblePackagesInManagedProfile()
+        if (visiblePackages.isEmpty()) return
 
-        return try {
-            File(sourceApk).inputStream().use { input ->
-                targetApk.outputStream().use { output ->
-                    input.copyTo(output)
-                }
+        val baselinePackages = prefs.getManagedProfileBaselineApps()
+        val managedPackages = prefs.getManagedApps()
+        if (baselinePackages.isEmpty()) {
+            prefs.setManagedProfileBaselineApps(visiblePackages)
+            if (managedPackages == visiblePackages || (managedPackages.isNotEmpty() && managedPackages.all { it in visiblePackages })) {
+                prefs.setManagedApps(emptySet())
+                prefs.setFrozenApps(emptySet())
             }
-
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                targetApk
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Unable to stage APK for $packageName: ${e.message}")
-            null
+            return
         }
-    }
 
-    private fun isEssentialSystemApp(packageName: String): Boolean {
-        return packageName in setOf(
-            "com.android.settings",
-            "com.android.documentsui",
-            "com.google.android.documentsui",
-            "com.android.vending",
-            "org.fdroid.fdroid"
-        )
+        if (managedPackages.isNotEmpty() && managedPackages.all { it in baselinePackages } && prefs.getFrozenApps().isEmpty()) {
+            prefs.setManagedApps(emptySet())
+        }
     }
 }

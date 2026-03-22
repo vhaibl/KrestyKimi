@@ -1,6 +1,7 @@
 package com.kresty.isolation.activities
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
@@ -114,8 +115,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUI() {
         val hasWorkProfile = workProfileManager.hasWorkProfile()
+        val isWorkProfileAppInstance = workProfileManager.isProfileOwner()
 
-        if (hasWorkProfile) {
+        if (isWorkProfileAppInstance) {
+            binding.statusTitle.text = getString(R.string.work_profile_active)
+            binding.statusDescription.text = "Управление изоляцией доступно только из основного профиля"
+            binding.statusIcon.setImageResource(R.drawable.ic_work_profile)
+            binding.statusIcon.setColorFilter(getColor(R.color.success))
+            binding.setupButton.visibility = View.GONE
+            binding.fabAddApp.visibility = View.GONE
+            binding.emptyState.visibility = View.VISIBLE
+            binding.appsRecyclerView.visibility = View.GONE
+            binding.frozenCountText.text = getString(R.string.freezed_apps_count, 0)
+        } else if (hasWorkProfile) {
             binding.statusTitle.text = getString(R.string.work_profile_active)
             binding.statusDescription.text = "Рабочий профиль настроен и готов к использованию"
             binding.statusIcon.setImageResource(R.drawable.ic_work_profile)
@@ -261,7 +273,13 @@ class MainActivity : AppCompatActivity() {
 
         pendingOperation = operation
         pendingPackageName = app?.packageName
-        workProfileActionLauncher.launch(intent)
+        try {
+            workProfileActionLauncher.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "Рабочий профиль недоступен", Toast.LENGTH_LONG).show()
+            pendingOperation = null
+            pendingPackageName = null
+        }
     }
 
     private fun handleProfileOperationStatus(resultCode: Int, intent: Intent?) {

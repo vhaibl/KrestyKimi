@@ -1,15 +1,15 @@
 package com.kresty.isolation.activities
 
 import android.view.View
-import androidx.test.core.app.ApplicationProvider
+import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario.launch
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.UiController
 import androidx.test.espresso.ViewAction
+import androidx.test.espresso.ViewAssertion
 import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.replaceText
-import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.contrib.RecyclerViewActions
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
@@ -20,8 +20,6 @@ import androidx.test.filters.LargeTest
 import com.kresty.isolation.R
 import com.kresty.isolation.utils.PreferencesManager
 import org.hamcrest.Matcher
-import org.hamcrest.Matchers.allOf
-import org.hamcrest.Matchers.hasDescendant
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,50 +34,54 @@ class ManagedProfileFlowTest {
     }
 
     @Test
-    fun managedProfileFlow_addFreezeUnfreezeAndRemoveSystemApp() {
+    fun managedProfileFlow_addFreezeUnfreezeAndRemoveFirstAvailableApp() {
         val scenario = launch(MainActivity::class.java)
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
 
         try {
+            onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
             onView(withId(R.id.fabAddApp)).check(matches(isDisplayed()))
             onView(withId(R.id.fabAddApp)).perform(click())
 
-            onView(withId(androidx.appcompat.R.id.search_src_text)).perform(replaceText("settings"))
+            onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
             onView(withId(R.id.recyclerView)).perform(
-                RecyclerViewActions.actionOnItem<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
-                    hasDescendant(withText("com.android.settings")),
+                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
+                    0,
                     clickChildViewWithId(R.id.addButton)
                 )
             )
 
             pressBack()
 
-            onView(withText("com.android.settings")).check(matches(isDisplayed()))
+            onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
             onView(withId(R.id.appsRecyclerView)).perform(
-                RecyclerViewActions.actionOnItem<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
-                    hasDescendant(withText("com.android.settings")),
+                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
+                    0,
                     clickChildViewWithId(R.id.freezeButton)
                 )
             )
-            onView(withText(R.string.status_frozen)).check(matches(isDisplayed()))
+            onView(withId(R.id.frozenCountText)).check(
+                matches(withText(appContext.getString(R.string.freezed_apps_count, 1)))
+            )
 
             onView(withId(R.id.appsRecyclerView)).perform(
-                RecyclerViewActions.actionOnItem<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
-                    hasDescendant(withText("com.android.settings")),
+                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
+                    0,
                     clickChildViewWithId(R.id.freezeButton)
                 )
             )
-            onView(withText(R.string.status_active)).check(matches(isDisplayed()))
+            onView(withId(R.id.frozenCountText)).check(
+                matches(withText(appContext.getString(R.string.freezed_apps_count, 0)))
+            )
 
             onView(withId(R.id.appsRecyclerView)).perform(
-                RecyclerViewActions.actionOnItem<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
-                    hasDescendant(withText("com.android.settings")),
+                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
+                    0,
                     clickChildViewWithId(R.id.deleteButton)
                 )
             )
             onView(withText(R.string.dialog_confirm)).perform(click())
-
             onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
-            onView(withText("com.android.settings")).check(doesNotExist())
         } finally {
             scenario.close()
         }
@@ -95,6 +97,21 @@ class ManagedProfileFlowTest {
                 val child = view.findViewById<View>(viewId)
                 child?.performClick()
                 uiController.loopMainThreadUntilIdle()
+            }
+        }
+    }
+
+    private fun recyclerHasAtLeast(expectedMinimum: Int): ViewAssertion {
+        return ViewAssertion { view, noViewFoundException ->
+            if (noViewFoundException != null) {
+                throw noViewFoundException
+            }
+
+            val recyclerView = view as? RecyclerView
+                ?: throw AssertionError("Expected RecyclerView but was ${view?.javaClass?.name}")
+            check(recyclerView.adapter != null) { "RecyclerView has no adapter" }
+            check(recyclerView.adapter!!.itemCount >= expectedMinimum) {
+                "Expected at least $expectedMinimum items but was ${recyclerView.adapter!!.itemCount}"
             }
         }
     }

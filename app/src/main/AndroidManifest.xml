@@ -3,11 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.kresty.isolation">
 
+    <permission
+        android:name="com.kresty.isolation.permission.MANAGE_WORK_PROFILE"
+        android:protectionLevel="signature" />
+
     <!-- Permissions -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- <uses-permission android:name="android.permission.INTERNET" /> -->
 
@@ -72,6 +74,7 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:noHistory="true"
+            android:permission="com.kresty.isolation.permission.MANAGE_WORK_PROFILE"
             android:theme="@style/Theme.Kresty">
             <intent-filter>
                 <action android:name="com.kresty.isolation.action.MANAGE_WORK_PROFILE" />

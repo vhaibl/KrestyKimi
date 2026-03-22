@@ -1,6 +1,7 @@
 package com.kresty.isolation.activities
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -42,6 +43,11 @@ class AppListActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         workProfileManager = WorkProfileManager(this)
+        if (workProfileManager.isProfileOwner()) {
+            Toast.makeText(this, "Добавление приложений доступно только из основного профиля", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
 
         setupRecyclerView()
         setupSearchView()
@@ -128,7 +134,12 @@ class AppListActivity : AppCompatActivity() {
         }
 
         pendingPackageName = app.packageName
-        cloneAppLauncher.launch(intent)
+        try {
+            cloneAppLauncher.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            pendingPackageName = null
+            Toast.makeText(this, "Рабочий профиль недоступен", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun handleCloneResult(resultCode: Int, data: android.content.Intent?) {
