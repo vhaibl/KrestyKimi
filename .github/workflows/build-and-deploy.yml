@@ -64,7 +64,7 @@ jobs:
             adb shell dpm set-profile-owner --user "$profile_id" 'com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver';
             adb shell am broadcast --user "$profile_id" -a android.app.action.PROFILE_PROVISIONING_COMPLETE -n com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver;
             adb shell pm list users | grep -F "$profile_id";
-            adb shell dpm list-owners | grep -F "com.kresty.isolation";
+            adb shell dumpsys device_policy | grep -F "com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver";
             adb shell am instrument --user 0 -w -e class com.kresty.isolation.activities.ManagedProfileFlowTest com.kresty.isolation.test/androidx.test.runner.AndroidJUnitRunner
 
       - name: Build APK
