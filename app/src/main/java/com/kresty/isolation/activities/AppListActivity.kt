@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.kresty.isolation.R
 import com.kresty.isolation.adapter.AppSelectionAdapter
@@ -17,8 +18,18 @@ import com.kresty.isolation.model.AppInfo
 import com.kresty.isolation.utils.AppSearchFilter
 import com.kresty.isolation.utils.WorkProfileBridge
 import com.kresty.isolation.utils.WorkProfileManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AppListActivity : AppCompatActivity() {
+
+    private data class AppListUiState(
+        val availableApps: List<AppInfo>,
+        val managedPackages: Set<String>
+    )
 
     private lateinit var binding: ActivityAppListBinding
     private lateinit var workProfileManager: WorkProfileManager
@@ -27,6 +38,7 @@ class AppListActivity : AppCompatActivity() {
     private var allApps: List<AppInfo> = emptyList()
     private var currentApps: List<AppInfo> = emptyList()
     private var pendingPackageName: String? = null
+    private var loadAppsJob: Job? = null
 
     private val cloneAppLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -64,6 +76,11 @@ class AppListActivity : AppCompatActivity() {
         loadApps()
     }
 
+    override fun onDestroy() {
+        loadAppsJob?.cancel()
+        super.onDestroy()
+    }
+
     private fun setupRecyclerView() {
         appAdapter = AppSelectionAdapter { app ->
             addAppToWorkProfile(app)
@@ -90,24 +107,28 @@ class AppListActivity : AppCompatActivity() {
     }
 
     private fun loadApps() {
+        loadAppsJob?.cancel()
         binding.progressBar.visibility = View.VISIBLE
         binding.emptyState.visibility = View.GONE
         binding.recyclerView.visibility = View.GONE
 
-        allApps = workProfileManager.getAvailableAppsToClone()
-        val workProfileApps = workProfileManager.getWorkProfileApps().map { it.packageName }.toSet()
-        appAdapter.setAddedPackages(workProfileApps)
+        val currentQuery = binding.searchView.query?.toString()
+        loadAppsJob = lifecycleScope.launch {
+            val state = withContext(Dispatchers.Default) {
+                AppListUiState(
+                    availableApps = workProfileManager.getAvailableAppsToClone(),
+                    managedPackages = workProfileManager.getWorkProfileApps().map { it.packageName }.toSet()
+                )
+            }
 
-        binding.progressBar.visibility = View.GONE
+            if (!isActive || isFinishing || isDestroyed) {
+                return@launch
+            }
 
-        if (allApps.isEmpty()) {
-            binding.emptyState.visibility = View.VISIBLE
-            binding.recyclerView.visibility = View.GONE
-        } else {
-            binding.emptyState.visibility = View.GONE
-            binding.recyclerView.visibility = View.VISIBLE
-            currentApps = allApps
-            appAdapter.submitList(currentApps)
+            allApps = state.availableApps
+            appAdapter.setAddedPackages(state.managedPackages)
+            binding.progressBar.visibility = View.GONE
+            filterApps(currentQuery)
         }
     }
 

@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.kresty.isolation.R
 import com.kresty.isolation.adapter.AppsAdapter
@@ -19,8 +20,18 @@ import com.kresty.isolation.model.AppInfo
 import com.kresty.isolation.utils.PreferencesManager
 import com.kresty.isolation.utils.WorkProfileBridge
 import com.kresty.isolation.utils.WorkProfileManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
+
+    private data class MainUiState(
+        val hasWorkProfile: Boolean,
+        val isWorkProfileAppInstance: Boolean
+    )
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var workProfileManager: WorkProfileManager
@@ -29,6 +40,8 @@ class MainActivity : AppCompatActivity() {
 
     private var pendingOperation: String? = null
     private var pendingPackageName: String? = null
+    private var isolatedAppsLoadJob: Job? = null
+    private var refreshUiJob: Job? = null
 
     private val workProfileActionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -55,6 +68,12 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateUI()
+    }
+
+    override fun onDestroy() {
+        refreshUiJob?.cancel()
+        isolatedAppsLoadJob?.cancel()
+        super.onDestroy()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -114,10 +133,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUI() {
-        val hasWorkProfile = workProfileManager.hasWorkProfile()
-        val isWorkProfileAppInstance = workProfileManager.isProfileOwner()
+        refreshUiJob?.cancel()
 
-        if (isWorkProfileAppInstance) {
+        val cachedState = MainUiState(
+            hasWorkProfile = prefs.isWorkProfileCreated(),
+            isWorkProfileAppInstance = workProfileManager.isProfileOwner()
+        )
+        applyUiState(cachedState)
+
+        refreshUiJob = lifecycleScope.launch {
+            val resolvedState = withContext(Dispatchers.Default) {
+                MainUiState(
+                    hasWorkProfile = workProfileManager.hasWorkProfile(),
+                    isWorkProfileAppInstance = workProfileManager.isProfileOwner()
+                )
+            }
+
+            if (!isActive || isFinishing || isDestroyed) {
+                return@launch
+            }
+
+            applyUiState(resolvedState)
+        }
+    }
+
+    private fun applyUiState(state: MainUiState) {
+        if (state.isWorkProfileAppInstance) {
+            isolatedAppsLoadJob?.cancel()
             binding.statusTitle.text = getString(R.string.work_profile_active)
             binding.statusDescription.text = "Управление изоляцией доступно только из основного профиля"
             binding.statusIcon.setImageResource(R.drawable.ic_work_profile)
@@ -127,15 +169,19 @@ class MainActivity : AppCompatActivity() {
             binding.emptyState.visibility = View.VISIBLE
             binding.appsRecyclerView.visibility = View.GONE
             binding.frozenCountText.text = getString(R.string.freezed_apps_count, 0)
-        } else if (hasWorkProfile) {
+        } else if (state.hasWorkProfile) {
             binding.statusTitle.text = getString(R.string.work_profile_active)
             binding.statusDescription.text = "Рабочий профиль настроен и готов к использованию"
             binding.statusIcon.setImageResource(R.drawable.ic_work_profile)
             binding.statusIcon.setColorFilter(getColor(R.color.success))
             binding.setupButton.visibility = View.GONE
             binding.fabAddApp.visibility = View.VISIBLE
+            binding.emptyState.visibility = View.VISIBLE
+            binding.appsRecyclerView.visibility = View.GONE
+            binding.frozenCountText.text = getString(R.string.freezed_apps_count, 0)
             loadIsolatedApps()
         } else {
+            isolatedAppsLoadJob?.cancel()
             binding.statusTitle.text = getString(R.string.work_profile_inactive)
             binding.statusDescription.text = "Нажмите для настройки рабочего профиля"
             binding.statusIcon.setImageResource(R.drawable.ic_work_profile)
@@ -151,19 +197,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadIsolatedApps() {
-        val apps = workProfileManager.getWorkProfileApps()
+        isolatedAppsLoadJob?.cancel()
+        isolatedAppsLoadJob = lifecycleScope.launch {
+            val apps = withContext(Dispatchers.IO) {
+                workProfileManager.getWorkProfileApps()
+            }
 
-        if (apps.isEmpty()) {
-            binding.emptyState.visibility = View.VISIBLE
-            binding.appsRecyclerView.visibility = View.GONE
-        } else {
-            binding.emptyState.visibility = View.GONE
-            binding.appsRecyclerView.visibility = View.VISIBLE
-            appsAdapter.submitList(apps)
+            if (!workProfileManager.hasWorkProfile() || workProfileManager.isProfileOwner()) {
+                return@launch
+            }
+
+            if (apps.isEmpty()) {
+                binding.emptyState.visibility = View.VISIBLE
+                binding.appsRecyclerView.visibility = View.GONE
+            } else {
+                binding.emptyState.visibility = View.GONE
+                binding.appsRecyclerView.visibility = View.VISIBLE
+                appsAdapter.submitList(apps)
+            }
+
+            val frozenCount = apps.count { it.isFrozen }
+            binding.frozenCountText.text = getString(R.string.freezed_apps_count, frozenCount)
         }
-
-        val frozenCount = apps.count { it.isFrozen }
-        binding.frozenCountText.text = getString(R.string.freezed_apps_count, frozenCount)
     }
 
     private fun toggleFreezeApp(app: AppInfo) {

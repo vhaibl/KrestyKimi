@@ -1,5 +1,6 @@
 package com.kresty.isolation.activities
 
+import android.os.SystemClock
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario.launch
@@ -43,11 +44,15 @@ class ManagedProfileFlowTest {
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
 
         try {
-            onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
-            onView(withId(R.id.fabAddApp)).check(matches(isDisplayed()))
+            waitUntil {
+                onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
+                onView(withId(R.id.fabAddApp)).check(matches(isDisplayed()))
+            }
             onView(withId(R.id.fabAddApp)).perform(click())
 
-            onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
+            waitUntil {
+                onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
+            }
             onView(withId(R.id.recyclerView)).perform(
                 RecyclerViewActions.scrollTo<RecyclerView.ViewHolder>(
                     hasDescendant(withText(TARGET_PACKAGE))
@@ -61,7 +66,9 @@ class ManagedProfileFlowTest {
                 )
             )
 
-            onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
+            waitUntil {
+                onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
+            }
             onView(withId(R.id.appsRecyclerView)).perform(
                 RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
                     0,
@@ -92,7 +99,9 @@ class ManagedProfileFlowTest {
             onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
 
             onView(withId(R.id.fabAddApp)).perform(click())
-            onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
+            waitUntil {
+                onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
+            }
             onView(withId(R.id.recyclerView)).perform(
                 RecyclerViewActions.scrollTo<RecyclerView.ViewHolder>(
                     hasDescendant(withText(TARGET_PACKAGE))
@@ -106,7 +115,9 @@ class ManagedProfileFlowTest {
                 )
             )
 
-            onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
+            waitUntil {
+                onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
+            }
             onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))
             onView(withId(R.id.appsRecyclerView)).perform(
                 RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
@@ -120,6 +131,23 @@ class ManagedProfileFlowTest {
         } finally {
             scenario.close()
         }
+    }
+
+    private fun waitUntil(timeoutMs: Long = 20_000, intervalMs: Long = 250, assertion: () -> Unit) {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        var lastError: Throwable? = null
+
+        while (SystemClock.uptimeMillis() < deadline) {
+            try {
+                assertion()
+                return
+            } catch (error: Throwable) {
+                lastError = error
+                SystemClock.sleep(intervalMs)
+            }
+        }
+
+        throw lastError ?: AssertionError("Condition was not met within ${timeoutMs}ms")
     }
 
     private fun clickChildViewWithId(viewId: Int): ViewAction {
