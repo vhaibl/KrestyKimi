@@ -1,26 +1,19 @@
 package com.kresty.isolation.activities
 
-import android.os.SystemClock
-import android.view.View
-import androidx.recyclerview.widget.RecyclerView
+import android.content.Context
 import androidx.test.core.app.ActivityScenario.launch
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.UiController
-import androidx.test.espresso.ViewAction
-import androidx.test.espresso.ViewAssertion
-import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.contrib.RecyclerViewActions
-import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withId
-import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
+import androidx.test.uiautomator.UiScrollable
+import androidx.test.uiautomator.UiSelector
+import androidx.test.uiautomator.Until
 import com.kresty.isolation.R
 import com.kresty.isolation.utils.PreferencesManager
-import org.hamcrest.Matcher
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -31,160 +24,90 @@ class ManagedProfileFlowTest {
 
     companion object {
         private const val TARGET_PACKAGE = "com.kresty.ownerfixture"
+        private const val TIMEOUT_MS = 30_000L
     }
+
+    private lateinit var appContext: Context
+    private lateinit var device: UiDevice
 
     @Before
     fun clearOwnerPreferences() {
-        PreferencesManager(ApplicationProvider.getApplicationContext()).clear()
+        appContext = ApplicationProvider.getApplicationContext()
+        PreferencesManager(appContext).clear()
+        device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
     }
 
     @Test
     fun managedProfileFlow_addFreezeUnfreezeAndRemoveFirstAvailableApp() {
         val scenario = launch(MainActivity::class.java)
-        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val appPackage = appContext.packageName
 
         try {
-            waitUntil {
-                onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
-                onView(withId(R.id.fabAddApp)).check(matches(isDisplayed()))
-            }
-            onView(withId(R.id.fabAddApp)).perform(click())
+            waitForObject(By.res(appPackage, "emptyState"))
+            clickObject(By.res(appPackage, "fabAddApp"))
 
-            waitUntil {
-                onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
-            }
-            onView(withId(R.id.recyclerView)).perform(
-                RecyclerViewActions.scrollTo<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(TARGET_PACKAGE))
-                )
-            )
-            onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))
-            onView(withId(R.id.recyclerView)).perform(
-                RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(TARGET_PACKAGE)),
-                    clickChildViewWithId(R.id.addButton)
-                )
-            )
+            waitForObject(By.res(appPackage, "recyclerView"))
+            scrollRecyclerToText(appPackage, "recyclerView", TARGET_PACKAGE)
+            clickChildInRowByText(TARGET_PACKAGE, "addButton")
 
-            waitUntil {
-                onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
-            }
-            onView(withId(R.id.appsRecyclerView)).perform(
-                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
-                    0,
-                    clickChildViewWithId(R.id.freezeButton)
-                )
-            )
-            onView(withId(R.id.frozenCountText)).check(
-                matches(withText(appContext.getString(R.string.freezed_apps_count, 1)))
-            )
+            waitForObject(By.res(appPackage, "appsRecyclerView"))
+            waitForObject(By.text(TARGET_PACKAGE))
+            clickChildInRowByText(TARGET_PACKAGE, "freezeButton")
+            waitForObject(By.text(appContext.getString(R.string.freezed_apps_count, 1)))
 
-            onView(withId(R.id.appsRecyclerView)).perform(
-                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
-                    0,
-                    clickChildViewWithId(R.id.freezeButton)
-                )
-            )
-            onView(withId(R.id.frozenCountText)).check(
-                matches(withText(appContext.getString(R.string.freezed_apps_count, 0)))
-            )
+            clickChildInRowByText(TARGET_PACKAGE, "freezeButton")
+            waitForObject(By.text(appContext.getString(R.string.freezed_apps_count, 0)))
 
-            onView(withId(R.id.appsRecyclerView)).perform(
-                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
-                    0,
-                    clickChildViewWithId(R.id.deleteButton)
-                )
-            )
-            onView(withText(R.string.dialog_confirm)).perform(click())
-            onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
+            clickChildInRowByText(TARGET_PACKAGE, "deleteButton")
+            clickObject(By.text(appContext.getString(R.string.dialog_confirm)))
+            waitForObject(By.res(appPackage, "emptyState"))
 
-            onView(withId(R.id.fabAddApp)).perform(click())
-            waitUntil {
-                onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
-            }
-            onView(withId(R.id.recyclerView)).perform(
-                RecyclerViewActions.scrollTo<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(TARGET_PACKAGE))
-                )
-            )
-            onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))
-            onView(withId(R.id.recyclerView)).perform(
-                RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(TARGET_PACKAGE)),
-                    clickChildViewWithId(R.id.addButton)
-                )
-            )
+            clickObject(By.res(appPackage, "fabAddApp"))
+            waitForObject(By.res(appPackage, "recyclerView"))
+            scrollRecyclerToText(appPackage, "recyclerView", TARGET_PACKAGE)
+            clickChildInRowByText(TARGET_PACKAGE, "addButton")
 
-            waitUntil {
-                onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
-            }
-            onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))
-            onView(withId(R.id.appsRecyclerView)).perform(
-                RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(TARGET_PACKAGE)),
-                    clickChildViewWithId(R.id.freezeButton)
-                )
-            )
-            onView(withId(R.id.frozenCountText)).check(
-                matches(withText(appContext.getString(R.string.freezed_apps_count, 1)))
-            )
+            waitForObject(By.res(appPackage, "appsRecyclerView"))
+            waitForObject(By.text(TARGET_PACKAGE))
+            clickChildInRowByText(TARGET_PACKAGE, "freezeButton")
+            waitForObject(By.text(appContext.getString(R.string.freezed_apps_count, 1)))
         } finally {
             scenario.close()
         }
     }
 
-    private fun waitUntil(timeoutMs: Long = 20_000, intervalMs: Long = 250, assertion: () -> Unit) {
-        val deadline = SystemClock.uptimeMillis() + timeoutMs
-        var lastError: Throwable? = null
+    private fun waitForObject(selector: androidx.test.uiautomator.BySelector): UiObject2 {
+        val found = device.wait(Until.findObject(selector), TIMEOUT_MS)
+        return found ?: throw AssertionError("Timed out waiting for selector: $selector")
+    }
 
-        while (SystemClock.uptimeMillis() < deadline) {
-            try {
-                assertion()
+    private fun clickObject(selector: androidx.test.uiautomator.BySelector) {
+        waitForObject(selector).click()
+        device.waitForIdle()
+    }
+
+    private fun scrollRecyclerToText(appPackage: String, recyclerId: String, text: String) {
+        val scrollable = UiScrollable(UiSelector().resourceId("$appPackage:id/$recyclerId")).setAsVerticalList()
+        check(scrollable.scrollTextIntoView(text)) {
+            "Could not scroll $recyclerId to text $text"
+        }
+        device.waitForIdle()
+    }
+
+    private fun clickChildInRowByText(text: String, childRes: String) {
+        val rowText = waitForObject(By.text(text))
+        var current: UiObject2? = rowText
+
+        while (current != null) {
+            val button = current.findObject(By.res(appContext.packageName, childRes))
+            if (button != null) {
+                button.click()
+                device.waitForIdle()
                 return
-            } catch (error: Throwable) {
-                lastError = error
-                SystemClock.sleep(intervalMs)
             }
+            current = current.parent
         }
 
-        throw lastError ?: AssertionError("Condition was not met within ${timeoutMs}ms")
+        throw AssertionError("Could not find child $childRes for row containing $text")
     }
-
-    private fun clickChildViewWithId(viewId: Int): ViewAction {
-        return object : ViewAction {
-            override fun getConstraints(): Matcher<View> = isDisplayed()
-
-            override fun getDescription(): String = "click child view with id $viewId"
-
-            override fun perform(uiController: UiController, view: View) {
-                val child = view.findViewById<View>(viewId)
-                child?.performClick()
-                uiController.loopMainThreadUntilIdle()
-            }
-        }
-    }
-
-    private fun recyclerHasAtLeast(expectedMinimum: Int): ViewAssertion {
-        return ViewAssertion { view, noViewFoundException ->
-            if (noViewFoundException != null) {
-                throw noViewFoundException
-            }
-
-            val recyclerView = view as? RecyclerView
-                ?: throw AssertionError("Expected RecyclerView but was ${view?.javaClass?.name}")
-            check(recyclerView.adapter != null) { "RecyclerView has no adapter" }
-            val prefs = PreferencesManager(ApplicationProvider.getApplicationContext())
-            val debugState = buildString {
-                append("managed=${prefs.getManagedApps()}")
-                append(", removedHidden=${prefs.getRemovedHiddenApps()}")
-                append(", baseline=${prefs.getManagedProfileBaselineApps()}")
-                append(", frozen=${prefs.getFrozenApps()}")
-                append(", workProfileCreated=${prefs.isWorkProfileCreated()}")
-            }
-            check(recyclerView.adapter!!.itemCount >= expectedMinimum) {
-                "Expected at least $expectedMinimum items but was ${recyclerView.adapter!!.itemCount}; $debugState"
-            }
-        }
-    }
-
 }
