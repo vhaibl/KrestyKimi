@@ -2,6 +2,7 @@ package com.kresty.isolation
 
 import android.app.Application
 import android.content.Context
+import com.kresty.isolation.utils.WorkProfileBridge
 
 class KrestyApplication : Application() {
 
@@ -13,6 +14,7 @@ class KrestyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        WorkProfileBridge.syncBridgeComponentState(this)
     }
 }
 

@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.kresty.isolation.utils.WorkProfileBridge
 
 class BootReceiver : BroadcastReceiver() {
     
@@ -12,13 +13,15 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d(TAG, "Boot completed, checking work profile status")
-            
-            // Check if work profile exists and restore frozen apps state if needed
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            WorkProfileBridge.syncBridgeComponentState(context)
+
+            if (KrestyDeviceAdminReceiver.isProfileOwner(context)) {
+                KrestyDeviceAdminReceiver.configureManagedProfile(context)
+            }
+
             if (KrestyDeviceAdminReceiver.hasWorkProfile(context)) {
-                // Work profile is active, nothing special to do
-                Log.d(TAG, "Work profile is active")
+                Log.d(TAG, "Work profile bridge is active")
             }
         }
     }

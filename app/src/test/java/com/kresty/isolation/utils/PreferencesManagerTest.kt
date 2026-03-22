@@ -100,4 +100,34 @@ class PreferencesManagerTest {
         verify(editor).putBoolean("work_profile_created", true)
         verify(editor).apply()
     }
+
+    @Test
+    fun addManagedAppPersistsUpdatedSet() {
+        val existing = linkedSetOf("com.example.old")
+        val expected = linkedSetOf("com.example.old", "com.example.new")
+
+        `when`(sharedPreferences.getStringSet(eq("managed_apps"), eq(emptySet<String>())))
+            .thenReturn(existing)
+        `when`(editor.putStringSet(eq("managed_apps"), eq(expected))).thenReturn(editor)
+
+        preferencesManager.addManagedApp("com.example.new")
+
+        verify(editor).putStringSet("managed_apps", expected)
+        verify(editor).apply()
+    }
+
+    @Test
+    fun removeManagedAppPersistsUpdatedSet() {
+        val existing = linkedSetOf("com.example.old", "com.example.remove")
+        val expected = linkedSetOf("com.example.old")
+
+        `when`(sharedPreferences.getStringSet(eq("managed_apps"), eq(emptySet<String>())))
+            .thenReturn(existing)
+        `when`(editor.putStringSet(eq("managed_apps"), eq(expected))).thenReturn(editor)
+
+        preferencesManager.removeManagedApp("com.example.remove")
+
+        verify(editor).putStringSet("managed_apps", expected)
+        verify(editor).apply()
+    }
 }

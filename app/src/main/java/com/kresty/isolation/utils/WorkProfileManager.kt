@@ -1,65 +1,78 @@
 package com.kresty.isolation.utils
 
 import android.app.admin.DevicePolicyManager
+import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Process
+import android.os.UserHandle
 import android.util.Log
+import androidx.core.content.FileProvider
 import com.kresty.isolation.model.AppInfo
 import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
+import java.io.File
 
 class WorkProfileManager(private val context: Context) {
-    
+
     companion object {
         private const val TAG = "WorkProfileManager"
         const val REQUEST_PROVISION_MANAGED_PROFILE = 1
     }
 
-    private val dpm: DevicePolicyManager = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    private val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    private val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+    private val packageManager = context.packageManager
     private val adminComponent: ComponentName = KrestyDeviceAdminReceiver.getComponentName(context)
     private val prefs = PreferencesManager(context)
 
-    /**
-     * Check if device supports work profiles
-     */
     fun isWorkProfileSupported(): Boolean {
-        return context.packageManager.hasSystemFeature(PackageManager.FEATURE_MANAGED_USERS)
+        return packageManager.hasSystemFeature(PackageManager.FEATURE_MANAGED_USERS)
     }
 
-    /**
-     * Check if work profile is active
-     */
     fun hasWorkProfile(): Boolean {
-        return KrestyDeviceAdminReceiver.hasWorkProfile(context) || hasManagedProfileHandle() || prefs.isWorkProfileCreated()
+        if (isProfileOwner()) return true
+
+        val managedProfile = getManagedProfileHandle()
+        if (managedProfile == null && prefs.isWorkProfileCreated()) {
+            prefs.setWorkProfileCreated(false)
+        }
+        return managedProfile != null
+    }
+
+    fun isProfileOwner(): Boolean {
+        return KrestyDeviceAdminReceiver.isProfileOwner(context)
     }
 
     fun setWorkProfileCreated(created: Boolean) {
         prefs.setWorkProfileCreated(created)
     }
 
-    private fun hasManagedProfileHandle(): Boolean {
-        return try {
-            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-            launcherApps.profiles.any { it != Process.myUserHandle() }
+    fun ensureCrossProfileIntentFilters() {
+        if (!isProfileOwner()) return
+
+        try {
+            dpm.clearCrossProfileIntentFilters(adminComponent)
+            dpm.addCrossProfileIntentFilter(
+                adminComponent,
+                IntentFilter(WorkProfileBridge.ACTION_MANAGE).apply {
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                },
+                DevicePolicyManager.FLAG_PARENT_CAN_ACCESS_MANAGED
+            )
         } catch (e: Exception) {
-            Log.w(TAG, "Unable to inspect managed profiles: ${e.message}")
-            false
+            Log.w(TAG, "Unable to ensure cross-profile filters: ${e.message}")
         }
     }
 
-    /**
-     * Start provisioning (creating) work profile
-     */
     fun startWorkProfileProvisioning(): Intent? {
-        if (!isWorkProfileSupported()) {
-            Log.w(TAG, "Work profile not supported on this device")
-            return null
-        }
+        if (!isWorkProfileSupported()) return null
 
         val intent = Intent(DevicePolicyManager.ACTION_PROVISION_MANAGED_PROFILE).apply {
             putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
@@ -68,190 +81,128 @@ class WorkProfileManager(private val context: Context) {
             putExtra(DevicePolicyManager.EXTRA_PROVISIONING_KEEP_ACCOUNT_ON_MIGRATION, false)
         }
 
-        return if (intent.resolveActivity(context.packageManager) != null) {
-            intent
-        } else {
-            Log.e(TAG, "No handler for provisioning intent")
-            null
-        }
+        return intent.takeIf { it.resolveActivity(packageManager) != null }
     }
 
-    /**
-     * Get list of apps installed in work profile
-     */
     fun getWorkProfileApps(): List<AppInfo> {
         if (!hasWorkProfile()) return emptyList()
 
-        val apps = mutableListOf<AppInfo>()
-        try {
-            // Get all packages for this user (work profile)
-            val pm = context.packageManager
-            val packages = pm.getInstalledPackages(0)
-            
-            for (pkg in packages) {
-                // Skip system apps and this app itself
-                if (pkg.packageName == context.packageName) continue
-                
-                // Check if app is in work profile (enabled by profile owner)
-                try {
-                    val appInfo = pm.getApplicationInfo(pkg.packageName, 0)
-                    val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                    
-                    // Only include non-system apps that are enabled
-                    if (!isSystemApp && appInfo.enabled) {
-                        val isFrozen = prefs.isAppFrozen(pkg.packageName)
-                        apps.add(AppInfo(
-                            packageName = pkg.packageName,
-                            appName = pm.getApplicationLabel(appInfo).toString(),
-                            icon = pm.getApplicationIcon(appInfo),
-                            isSystemApp = false,
-                            isInstalledInWorkProfile = true,
-                            isFrozen = isFrozen
-                        ))
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error getting app info for ${pkg.packageName}")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting work profile apps: ${e.message}")
+        val managedPackages = prefs.getManagedApps()
+        val activePackages = managedPackages.filter(::isInstalledInManagedProfile)
+        val stalePackages = managedPackages - activePackages.toSet()
+        stalePackages.forEach { packageName ->
+            prefs.removeManagedApp(packageName)
+            prefs.removeFrozenApp(packageName)
         }
-        
-        return apps.sortedBy { it.appName }
+
+        return activePackages
+            .mapNotNull(::buildDisplayAppInfo)
+            .sortedBy { it.appName.lowercase() }
     }
 
-    /**
-     * Get list of apps available to clone (from main profile)
-     */
     fun getAvailableAppsToClone(): List<AppInfo> {
-        val pm = context.packageManager
-        val apps = mutableListOf<AppInfo>()
-        val workProfileApps = getWorkProfileApps().map { it.packageName }.toSet()
-        
-        try {
-            val packages = pm.getInstalledPackages(PackageManager.GET_META_DATA)
-            
-            for (pkg in packages) {
-                // Skip already cloned apps
-                if (workProfileApps.contains(pkg.packageName)) continue
-                
-                // Skip this app
-                if (pkg.packageName == context.packageName) continue
-                
-                try {
-                    val appInfo = pm.getApplicationInfo(pkg.packageName, 0)
-                    val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                    
-                    // Include user apps and some system apps
-                    if (!isSystemApp || isEssentialSystemApp(pkg.packageName)) {
-                        apps.add(AppInfo(
-                            packageName = pkg.packageName,
-                            appName = pm.getApplicationLabel(appInfo).toString(),
-                            icon = pm.getApplicationIcon(appInfo),
-                            isSystemApp = isSystemApp,
-                            isInstalledInWorkProfile = false
-                        ))
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error getting app info for ${pkg.packageName}")
+        if (!hasWorkProfile()) return emptyList()
+
+        val unavailablePackages = prefs.getManagedApps()
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+
+        return packageManager.queryIntentActivities(launcherIntent, 0)
+            .asSequence()
+            .mapNotNull { resolveInfo ->
+                val packageName = resolveInfo.activityInfo.packageName
+                if (packageName == context.packageName || unavailablePackages.contains(packageName)) {
+                    return@mapNotNull null
                 }
+
+                val appInfo = try {
+                    packageManager.getApplicationInfo(packageName, 0)
+                } catch (_: PackageManager.NameNotFoundException) {
+                    return@mapNotNull null
+                }
+
+                val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                if (isSystemApp && !isEssentialSystemApp(packageName)) {
+                    return@mapNotNull null
+                }
+                if (!isSystemApp && !appInfo.splitPublicSourceDirs.isNullOrEmpty()) {
+                    return@mapNotNull null
+                }
+
+                AppInfo(
+                    packageName = packageName,
+                    appName = packageManager.getApplicationLabel(appInfo).toString(),
+                    icon = packageManager.getApplicationIcon(appInfo),
+                    isSystemApp = isSystemApp
+                )
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting available apps: ${e.message}")
-        }
-        
-        return apps.sortedBy { it.appName }
+            .distinctBy { it.packageName }
+            .sortedBy { it.appName.lowercase() }
+            .toList()
     }
 
-    /**
-     * Clone app to work profile
-     */
+    fun buildProfileActionIntent(action: String, app: AppInfo): Intent? {
+        if (!hasWorkProfile()) return null
+
+        return WorkProfileBridge.buildManageIntent(action, app.packageName).apply {
+            if (action == WorkProfileBridge.OP_CLONE && !app.isSystemApp) {
+                val stagedApkUri = stageBaseApk(app.packageName) ?: return null
+                putExtra(WorkProfileBridge.EXTRA_STAGED_APK_URI, stagedApkUri.toString())
+                clipData = ClipData.newUri(context.contentResolver, "Staged APK", stagedApkUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+    }
+
+    fun markAppManaged(packageName: String) {
+        prefs.addManagedApp(packageName)
+    }
+
+    fun unmarkAppManaged(packageName: String) {
+        prefs.removeManagedApp(packageName)
+        prefs.removeFrozenApp(packageName)
+    }
+
+    fun markAppFrozen(packageName: String) {
+        prefs.addFrozenApp(packageName)
+    }
+
+    fun markAppUnfrozen(packageName: String) {
+        prefs.removeFrozenApp(packageName)
+    }
+
     fun cloneAppToWorkProfile(packageName: String): Boolean {
-        if (!hasWorkProfile()) {
-            Log.e(TAG, "Cannot clone app: no work profile")
-            return false
+        if (!isProfileOwner()) return false
+        if (isPackageInstalledInCurrentProfile(packageName)) {
+            return if (isApplicationHidden(packageName)) {
+                setAppHiddenLocally(packageName, false)
+            } else {
+                true
+            }
         }
 
-        return try {
-            // Enable the app in work profile
-            dpm.enableSystemApp(adminComponent, packageName)
-            Log.d(TAG, "App $packageName enabled in work profile")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error cloning app: ${e.message}")
-            false
-        }
+        return cloneSystemAppToCurrentProfile(packageName) ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && installExistingPackage(packageName))
     }
 
-    /**
-     * Remove app from work profile (hide/disable it)
-     */
-    fun removeAppFromWorkProfile(packageName: String): Boolean {
-        if (!hasWorkProfile()) return false
-
-        return try {
-            // For work profile, we can't truly uninstall, but we can hide the app
-            // by setting it as not enabled
-            dpm.setApplicationHidden(adminComponent, packageName, true)
-            prefs.removeFrozenApp(packageName)
-            Log.d(TAG, "App $packageName hidden from work profile")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error removing app: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * Freeze app (hide from launcher and disable)
-     */
     fun freezeApp(packageName: String): Boolean {
-        if (!hasWorkProfile()) return false
-
-        return try {
-            dpm.setApplicationHidden(adminComponent, packageName, true)
-            prefs.addFrozenApp(packageName)
-            Log.d(TAG, "App $packageName frozen")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error freezing app: ${e.message}")
-            false
-        }
+        return isProfileOwner() && setAppHiddenLocally(packageName, true)
     }
 
-    /**
-     * Unfreeze app (show in launcher and enable)
-     */
     fun unfreezeApp(packageName: String): Boolean {
-        if (!hasWorkProfile()) return false
-
-        return try {
-            dpm.setApplicationHidden(adminComponent, packageName, false)
-            prefs.removeFrozenApp(packageName)
-            Log.d(TAG, "App $packageName unfrozen")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error unfreezing app: ${e.message}")
-            false
-        }
+        return isProfileOwner() && setAppHiddenLocally(packageName, false)
     }
 
-    /**
-     * Check if app is frozen
-     */
-    fun isAppFrozen(packageName: String): Boolean {
-        return prefs.isAppFrozen(packageName)
+    fun removeAppFromWorkProfile(packageName: String): Boolean {
+        return isProfileOwner() && setAppHiddenLocally(packageName, true)
     }
 
-    /**
-     * Delete work profile completely
-     */
     fun deleteWorkProfile(): Boolean {
+        if (!isProfileOwner()) return false
+
         return try {
             dpm.wipeData(0)
             prefs.setWorkProfileCreated(false)
-            prefs.clear() // Clear all preferences
-            Log.d(TAG, "Work profile deleted")
+            prefs.clear()
             true
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting work profile: ${e.message}")
@@ -259,49 +210,165 @@ class WorkProfileManager(private val context: Context) {
         }
     }
 
-    /**
-     * Check if app is essential system app that should be shown
-     */
+    fun isPackageInstalledInCurrentProfile(packageName: String): Boolean {
+        return try {
+            val appInfo = packageManager.getApplicationInfo(packageName, PackageManager.MATCH_UNINSTALLED_PACKAGES)
+            (appInfo.flags and ApplicationInfo.FLAG_INSTALLED) != 0
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun isApplicationHidden(packageName: String): Boolean {
+        if (!isProfileOwner()) return false
+
+        return try {
+            dpm.isApplicationHidden(adminComponent, packageName)
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to inspect hidden state for $packageName: ${e.message}")
+            false
+        }
+    }
+
+    fun cloneSystemAppToCurrentProfile(packageName: String): Boolean {
+        return try {
+            dpm.enableSystemApp(adminComponent, packageName)
+            dpm.setApplicationHidden(adminComponent, packageName, false)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to enable system app $packageName: ${e.message}")
+            false
+        }
+    }
+
+    fun installExistingPackage(packageName: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+
+        return try {
+            dpm.installExistingPackage(adminComponent, packageName)
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to install existing package $packageName: ${e.message}")
+            false
+        }
+    }
+
+    fun buildPackageInstallIntent(packageName: String, stagedApkUri: Uri?): Intent? {
+        val apkUri = stagedApkUri ?: stageBaseApk(packageName) ?: return null
+        return Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            data = apkUri
+            clipData = ClipData.newUri(context.contentResolver, "Staged APK", apkUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
+        }.takeIf { it.resolveActivity(packageManager) != null }
+    }
+
+    fun setAppHiddenLocally(packageName: String, hidden: Boolean): Boolean {
+        return try {
+            dpm.setApplicationHidden(adminComponent, packageName, hidden)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update hidden state for $packageName: ${e.message}")
+            false
+        }
+    }
+
+    fun isSystemApp(packageName: String): Boolean {
+        return try {
+            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+            (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    fun getIsolatedAppsCount(): Int = getWorkProfileApps().size
+
+    fun getFrozenAppsCount(): Int = getWorkProfileApps().count { it.isFrozen }
+
+    private fun buildDisplayAppInfo(packageName: String): AppInfo? {
+        return try {
+            val ownerAppInfo = packageManager.getApplicationInfo(packageName, 0)
+            AppInfo(
+                packageName = packageName,
+                appName = packageManager.getApplicationLabel(ownerAppInfo).toString(),
+                icon = packageManager.getApplicationIcon(ownerAppInfo),
+                isSystemApp = (ownerAppInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                isInstalledInWorkProfile = true,
+                isFrozen = prefs.isAppFrozen(packageName)
+            )
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
+    private fun isInstalledInManagedProfile(packageName: String): Boolean {
+        if (isProfileOwner()) {
+            return isPackageInstalledInCurrentProfile(packageName)
+        }
+
+        val profileHandle = getManagedProfileHandle() ?: return false
+        return try {
+            val appInfo = launcherApps.getApplicationInfo(
+                packageName,
+                PackageManager.MATCH_UNINSTALLED_PACKAGES,
+                profileHandle
+            )
+            (appInfo.flags and ApplicationInfo.FLAG_INSTALLED) != 0
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to inspect $packageName in managed profile: ${e.message}")
+            false
+        }
+    }
+
+    private fun getManagedProfileHandle(): UserHandle? {
+        return try {
+            launcherApps.profiles.firstOrNull { it != Process.myUserHandle() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to inspect managed profiles: ${e.message}")
+            null
+        }
+    }
+
+    private fun stageBaseApk(packageName: String): Uri? {
+        val appInfo = try {
+            packageManager.getApplicationInfo(packageName, 0)
+        } catch (_: PackageManager.NameNotFoundException) {
+            return null
+        }
+
+        val sourceApk = appInfo.publicSourceDir ?: appInfo.sourceDir ?: return null
+        val stagingDir = File(context.cacheDir, "cloned-apks/$packageName").apply {
+            mkdirs()
+        }
+        val targetApk = File(stagingDir, "base.apk")
+
+        return try {
+            File(sourceApk).inputStream().use { input ->
+                targetApk.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                targetApk
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to stage APK for $packageName: ${e.message}")
+            null
+        }
+    }
+
     private fun isEssentialSystemApp(packageName: String): Boolean {
-        val essentialApps = setOf(
-            "com.android.chrome",
-            "com.google.android.apps.maps",
-            "com.google.android.gm",
-            "com.google.android.youtube",
-            "com.whatsapp",
-            "com.telegram.messenger",
-            "org.telegram.messenger",
-            "com.vkontakte.android",
-            "com.instagram.android",
-            "com.facebook.katana",
-            "com.twitter.android",
-            "com.discord",
-            "com.spotify.music",
-            "com.google.android.apps.photos",
-            "com.google.android.apps.docs",
-            "com.microsoft.office.word",
-            "com.microsoft.office.excel",
-            "com.microsoft.office.powerpoint",
-            "com.zoom.us",
-            "com.microsoft.teams",
-            "com.slack",
-            "com.tinder",
-            "com.badoo.mobile"
+        return packageName in setOf(
+            "com.android.settings",
+            "com.android.documentsui",
+            "com.google.android.documentsui",
+            "com.android.vending",
+            "org.fdroid.fdroid"
         )
-        return essentialApps.contains(packageName)
-    }
-
-    /**
-     * Get count of isolated apps
-     */
-    fun getIsolatedAppsCount(): Int {
-        return getWorkProfileApps().size
-    }
-
-    /**
-     * Get count of frozen apps
-     */
-    fun getFrozenAppsCount(): Int {
-        return getWorkProfileApps().count { it.isFrozen }
     }
 }

@@ -9,6 +9,7 @@ import android.util.Log
 import android.widget.Toast
 import com.kresty.isolation.R
 import com.kresty.isolation.utils.PreferencesManager
+import com.kresty.isolation.utils.WorkProfileBridge
 
 class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
 
@@ -33,26 +34,49 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
         fun hasWorkProfile(context: Context): Boolean {
             return isProfileOwner(context)
         }
+
+        fun configureManagedProfile(context: Context) {
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = getComponentName(context)
+
+            PreferencesManager(context).setWorkProfileCreated(true)
+            WorkProfileBridge.syncBridgeComponentState(context)
+            dpm.setProfileName(adminComponent, context.getString(R.string.app_name))
+
+            dpm.clearCrossProfileIntentFilters(adminComponent)
+            dpm.addCrossProfileIntentFilter(
+                adminComponent,
+                WorkProfileBridge.buildManageIntentFilter(),
+                DevicePolicyManager.FLAG_PARENT_CAN_ACCESS_MANAGED
+            )
+
+            dpm.setProfileEnabled(adminComponent)
+            enableSystemApps(context, dpm, adminComponent)
+        }
+
+        private fun enableSystemApps(context: Context, dpm: DevicePolicyManager, admin: ComponentName) {
+            val systemAppsToEnable = listOf(
+                "com.android.documentsui",
+                "com.google.android.documentsui",
+                "com.android.settings"
+            )
+
+            for (pkg in systemAppsToEnable) {
+                try {
+                    dpm.enableSystemApp(admin, pkg)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not enable $pkg: ${e.message}")
+                }
+            }
+        }
     }
 
     override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
         super.onProfileProvisioningComplete(context, intent)
         Log.d(TAG, "Profile provisioning complete")
         
-        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        val adminComponent = getComponentName(context)
-        
         try {
-            PreferencesManager(context).setWorkProfileCreated(true)
-
-            // Set profile name
-            dpm.setProfileName(adminComponent, context.getString(R.string.app_name))
-            
-            // Enable the profile
-            dpm.setProfileEnabled(adminComponent)
-            
-            // Enable some system apps in work profile
-            enableSystemApps(context, dpm, adminComponent)
+            configureManagedProfile(context)
             
             // Send broadcast to notify UI
             val broadcastIntent = Intent(ACTION_PROFILE_READY)
@@ -84,20 +108,4 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
         }
     }
 
-    private fun enableSystemApps(context: Context, dpm: DevicePolicyManager, admin: ComponentName) {
-        // Enable essential system apps in work profile
-        val systemAppsToEnable = listOf(
-            "com.android.documentsui",
-            "com.google.android.documentsui",
-            "com.android.settings"
-        )
-        
-        for (pkg in systemAppsToEnable) {
-            try {
-                dpm.enableSystemApp(admin, pkg)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not enable $pkg: ${e.message}")
-            }
-        }
-    }
 }

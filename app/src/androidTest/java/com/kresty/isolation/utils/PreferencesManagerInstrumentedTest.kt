@@ -66,4 +66,15 @@ class PreferencesManagerInstrumentedTest {
 
         assertTrue(preferencesManager.isWorkProfileCreated())
     }
+
+    @Test
+    fun managedApps_roundTripThroughSharedPreferences() {
+        preferencesManager.addManagedApp("org.telegram.messenger")
+
+        assertTrue(preferencesManager.getManagedApps().contains("org.telegram.messenger"))
+
+        preferencesManager.removeManagedApp("org.telegram.messenger")
+
+        assertFalse(preferencesManager.getManagedApps().contains("org.telegram.messenger"))
+    }
 }

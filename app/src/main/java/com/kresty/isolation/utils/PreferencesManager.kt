@@ -11,6 +11,7 @@ class PreferencesManager(context: Context) {
         private const val PREFS_NAME = "kresty_preferences"
         private const val KEY_SUBSCRIPTION_TIER = "subscription_tier"
         private const val KEY_FROZEN_APPS = "frozen_apps"
+        private const val KEY_MANAGED_APPS = "managed_apps"
         private const val KEY_WORK_PROFILE_CREATED = "work_profile_created"
         private const val KEY_FIRST_LAUNCH = "first_launch"
         
@@ -71,6 +72,35 @@ class PreferencesManager(context: Context) {
      */
     fun getFrozenApps(): Set<String> {
         return prefs.getStringSet(KEY_FROZEN_APPS, emptySet()) ?: emptySet()
+    }
+
+    /**
+     * Get set of app package names explicitly managed by Kresty
+     */
+    fun getManagedApps(): Set<String> {
+        return prefs.getStringSet(KEY_MANAGED_APPS, emptySet()) ?: emptySet()
+    }
+
+    /**
+     * Add app to managed list
+     */
+    fun addManagedApp(packageName: String) {
+        val managedApps = getManagedApps().toMutableSet()
+        managedApps.add(packageName)
+        prefs.edit().putStringSet(KEY_MANAGED_APPS, managedApps).apply()
+    }
+
+    fun setManagedApps(packageNames: Set<String>) {
+        prefs.edit().putStringSet(KEY_MANAGED_APPS, packageNames).apply()
+    }
+
+    /**
+     * Remove app from managed list
+     */
+    fun removeManagedApp(packageName: String) {
+        val managedApps = getManagedApps().toMutableSet()
+        managedApps.remove(packageName)
+        prefs.edit().putStringSet(KEY_MANAGED_APPS, managedApps).apply()
     }
 
     /**
