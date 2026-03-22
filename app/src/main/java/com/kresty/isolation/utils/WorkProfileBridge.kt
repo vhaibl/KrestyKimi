@@ -26,7 +26,6 @@ object WorkProfileBridge {
 
     fun buildManageIntent(operation: String, packageName: String? = null): Intent {
         return Intent(ACTION_MANAGE).apply {
-            `package` = "com.kresty.isolation"
             addCategory(Intent.CATEGORY_DEFAULT)
             putExtra(EXTRA_OPERATION, operation)
             packageName?.let { putExtra(EXTRA_PACKAGE_NAME, it) }
