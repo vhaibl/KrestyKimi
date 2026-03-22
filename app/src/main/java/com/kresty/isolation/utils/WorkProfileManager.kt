@@ -5,8 +5,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Process
 import android.util.Log
 import com.kresty.isolation.model.AppInfo
 import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
@@ -33,11 +35,21 @@ class WorkProfileManager(private val context: Context) {
      * Check if work profile is active
      */
     fun hasWorkProfile(): Boolean {
-        return KrestyDeviceAdminReceiver.hasWorkProfile(context) || prefs.isWorkProfileCreated()
+        return KrestyDeviceAdminReceiver.hasWorkProfile(context) || hasManagedProfileHandle() || prefs.isWorkProfileCreated()
     }
 
     fun setWorkProfileCreated(created: Boolean) {
         prefs.setWorkProfileCreated(created)
+    }
+
+    private fun hasManagedProfileHandle(): Boolean {
+        return try {
+            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+            launcherApps.profiles.any { it != Process.myUserHandle() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to inspect managed profiles: ${e.message}")
+            false
+        }
     }
 
     /**
