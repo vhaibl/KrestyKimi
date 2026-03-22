@@ -57,4 +57,13 @@ class PreferencesManagerInstrumentedTest {
 
         assertFalse(preferencesManager.isFirstLaunch())
     }
+
+    @Test
+    fun workProfileMarker_roundTripsThroughSharedPreferences() {
+        assertFalse(preferencesManager.isWorkProfileCreated())
+
+        preferencesManager.setWorkProfileCreated(true)
+
+        assertTrue(preferencesManager.isWorkProfileCreated())
+    }
 }

@@ -3,9 +3,25 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def releaseKeystoreFile = file("signing/krestykimi-release.jks")
+def releaseStorePassword = System.getenv("KRESTYKIMI_RELEASE_STORE_PASSWORD") ?: "krestykimi-release"
+def releaseKeyAlias = System.getenv("KRESTYKIMI_RELEASE_KEY_ALIAS") ?: "krestykimi"
+def releaseKeyPassword = System.getenv("KRESTYKIMI_RELEASE_KEY_PASSWORD") ?: releaseStorePassword
+
 android {
     namespace 'com.kresty.isolation'
     compileSdk 33
+
+    signingConfigs {
+        release {
+            storeFile releaseKeystoreFile
+            storePassword releaseStorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
 
     defaultConfig {
         applicationId "com.kresty.isolation"
@@ -19,6 +35,7 @@ android {
     buildTypes {
         release {
             minifyEnabled true
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

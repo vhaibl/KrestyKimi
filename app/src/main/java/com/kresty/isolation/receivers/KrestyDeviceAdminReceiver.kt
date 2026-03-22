@@ -5,10 +5,10 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.UserHandle
 import android.util.Log
 import android.widget.Toast
 import com.kresty.isolation.R
+import com.kresty.isolation.utils.PreferencesManager
 
 class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
 
@@ -43,6 +43,8 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
         val adminComponent = getComponentName(context)
         
         try {
+            PreferencesManager(context).setWorkProfileCreated(true)
+
             // Set profile name
             dpm.setProfileName(adminComponent, context.getString(R.string.app_name))
             

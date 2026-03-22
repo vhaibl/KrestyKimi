@@ -1,8 +1,6 @@
 package com.kresty.isolation.activities
 
 import android.app.Activity
-import android.app.admin.DevicePolicyManager
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -10,7 +8,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.kresty.isolation.R
 import com.kresty.isolation.databinding.ActivitySetupBinding
-import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
 import com.kresty.isolation.utils.WorkProfileManager
 
 class SetupActivity : AppCompatActivity() {
@@ -65,10 +62,12 @@ class SetupActivity : AppCompatActivity() {
         if (requestCode == WorkProfileManager.REQUEST_PROVISION_MANAGED_PROFILE) {
             if (resultCode == Activity.RESULT_OK) {
                 // Work profile created successfully
+                workProfileManager.setWorkProfileCreated(true)
                 Toast.makeText(this, R.string.work_profile_active, Toast.LENGTH_SHORT).show()
                 finish()
             } else {
                 // User cancelled or error
+                workProfileManager.setWorkProfileCreated(false)
                 Toast.makeText(this, R.string.error_provisioning_failed, Toast.LENGTH_LONG).show()
             }
         }

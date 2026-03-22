@@ -90,4 +90,14 @@ class PreferencesManagerTest {
         verify(editor).putBoolean("first_launch", false)
         verify(editor).apply()
     }
+
+    @Test
+    fun setWorkProfileCreatedStoresMarker() {
+        `when`(editor.putBoolean(eq("work_profile_created"), eq(true))).thenReturn(editor)
+
+        preferencesManager.setWorkProfileCreated(true)
+
+        verify(editor).putBoolean("work_profile_created", true)
+        verify(editor).apply()
+    }
 }

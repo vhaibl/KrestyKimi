@@ -33,7 +33,11 @@ class WorkProfileManager(private val context: Context) {
      * Check if work profile is active
      */
     fun hasWorkProfile(): Boolean {
-        return KrestyDeviceAdminReceiver.hasWorkProfile(context)
+        return KrestyDeviceAdminReceiver.hasWorkProfile(context) || prefs.isWorkProfileCreated()
+    }
+
+    fun setWorkProfileCreated(created: Boolean) {
+        prefs.setWorkProfileCreated(created)
     }
 
     /**
