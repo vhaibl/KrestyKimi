@@ -36,14 +36,17 @@ class WorkProfileManager(private val context: Context) {
         if (isProfileOwner()) return true
 
         val managedProfile = getManagedProfileHandle()
-        if (managedProfile == null && prefs.isWorkProfileCreated()) {
-            prefs.setWorkProfileCreated(false)
-            prefs.setManagedApps(emptySet())
-            prefs.setFrozenApps(emptySet())
-            prefs.setManagedProfileBaselineApps(emptySet())
-            prefs.setRemovedHiddenApps(emptySet())
+        if (managedProfile != null) {
+            if (!prefs.isWorkProfileCreated()) {
+                prefs.setWorkProfileCreated(true)
+            }
+            return true
         }
-        return managedProfile != null
+
+        // LauncherApps can temporarily stop surfacing the managed profile while it
+        // is still present. Keep the persisted marker as the source of truth until
+        // an explicit delete path clears it.
+        return prefs.isWorkProfileCreated()
     }
 
     fun isProfileOwner(): Boolean {
@@ -339,16 +342,18 @@ class WorkProfileManager(private val context: Context) {
 
         val baselinePackages = prefs.getManagedProfileBaselineApps()
         val managedPackages = prefs.getManagedApps()
+        val removedHiddenPackages = prefs.getRemovedHiddenApps()
+        val frozenPackages = prefs.getFrozenApps()
         if (baselinePackages.isEmpty()) {
-            prefs.setManagedProfileBaselineApps(visiblePackages)
-            if (managedPackages == visiblePackages || (managedPackages.isNotEmpty() && managedPackages.all { it in visiblePackages })) {
-                prefs.setManagedApps(emptySet())
-                prefs.setFrozenApps(emptySet())
+            if (managedPackages.isNotEmpty() || removedHiddenPackages.isNotEmpty() || frozenPackages.isNotEmpty()) {
+                return
             }
+
+            prefs.setManagedProfileBaselineApps(visiblePackages)
             return
         }
 
-        if (managedPackages.isNotEmpty() && managedPackages.all { it in baselinePackages } && prefs.getFrozenApps().isEmpty()) {
+        if (managedPackages.isNotEmpty() && removedHiddenPackages.isEmpty() && managedPackages.all { it in baselinePackages } && frozenPackages.isEmpty()) {
             prefs.setManagedApps(emptySet())
         }
     }
