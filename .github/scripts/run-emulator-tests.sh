@@ -30,6 +30,10 @@ timeout 2m adb shell am start-user -w "$profile_id"
 timeout 2m adb shell pm install-existing --user "$profile_id" com.kresty.isolation
 timeout 2m adb shell dpm set-profile-owner --user "$profile_id" \
   'com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver'
+# Start the app inside the managed profile so its Application can finalize
+# bridge/filter setup even when the shell broadcast below is rejected.
+timeout 2m adb shell am start --user "$profile_id" -W \
+  -n com.kresty.isolation/.activities.MainActivity || true
 timeout 2m adb shell am broadcast --user "$profile_id" \
   -a android.app.action.PROFILE_PROVISIONING_COMPLETE \
   -n com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver
