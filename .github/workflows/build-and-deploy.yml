@@ -51,12 +51,11 @@ jobs:
           arch: x86_64
           profile: pixel_4
           script: |
+            set -euo pipefail
             ./gradlew assembleDebug assembleDebugAndroidTest
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell am instrument -w \
-              -e notClass com.kresty.isolation.activities.ManagedProfileFlowTest \
-              com.kresty.isolation.test/androidx.test.runner.AndroidJUnitRunner
+            adb shell am instrument --user 0 -w -e notClass com.kresty.isolation.activities.ManagedProfileFlowTest com.kresty.isolation.test/androidx.test.runner.AndroidJUnitRunner
 
             profile_output="$(adb shell pm create-user --profileOf 0 --managed 'Kresty Test' | tr -d '\r')"
             profile_id="$(printf '%s\n' "$profile_output" | sed -n 's/.*id \([0-9][0-9]*\).*/\1/p')"
@@ -69,13 +68,11 @@ jobs:
             adb shell am start-user -w "$profile_id"
             adb shell pm install-existing --user "$profile_id" com.kresty.isolation
             adb shell dpm set-profile-owner --user "$profile_id" 'com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver'
-            adb shell am broadcast --user "$profile_id" \
-              -a android.app.action.PROFILE_PROVISIONING_COMPLETE \
-              -n com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver
+            adb shell am broadcast --user "$profile_id" -a android.app.action.PROFILE_PROVISIONING_COMPLETE -n com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver
+            adb shell pm list users | grep -F "$profile_id"
+            adb shell dpm list-owners | grep -F "com.kresty.isolation"
 
-            adb shell am instrument -w \
-              -e class com.kresty.isolation.activities.ManagedProfileFlowTest \
-              com.kresty.isolation.test/androidx.test.runner.AndroidJUnitRunner
+            adb shell am instrument --user 0 -w -e class com.kresty.isolation.activities.ManagedProfileFlowTest com.kresty.isolation.test/androidx.test.runner.AndroidJUnitRunner
 
       - name: Build APK
         id: build_apk
