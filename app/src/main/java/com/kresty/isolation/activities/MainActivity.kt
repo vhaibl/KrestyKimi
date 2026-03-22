@@ -208,7 +208,7 @@ class MainActivity : AppCompatActivity() {
         if (workProfileManager.isProfileOwner()) {
             val success = workProfileManager.removeAppFromWorkProfile(app.packageName)
             if (success) {
-                workProfileManager.unmarkAppManaged(app.packageName)
+                workProfileManager.markAppRemoved(app.packageName)
                 Toast.makeText(this, R.string.success_app_removed, Toast.LENGTH_SHORT).show()
                 loadIsolatedApps()
             } else {
@@ -305,7 +305,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.success_app_unfrozen, Toast.LENGTH_SHORT).show()
             }
             WorkProfileBridge.OP_REMOVE -> {
-                packageName?.let(workProfileManager::unmarkAppManaged)
+                packageName?.let(workProfileManager::markAppRemoved)
                 Toast.makeText(this, R.string.success_app_removed, Toast.LENGTH_SHORT).show()
             }
             WorkProfileBridge.OP_DELETE_PROFILE -> {

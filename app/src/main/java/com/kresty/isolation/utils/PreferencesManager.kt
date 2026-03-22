@@ -13,6 +13,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_FROZEN_APPS = "frozen_apps"
         private const val KEY_MANAGED_APPS = "managed_apps"
         private const val KEY_MANAGED_PROFILE_BASELINE_APPS = "managed_profile_baseline_apps"
+        private const val KEY_REMOVED_HIDDEN_APPS = "removed_hidden_apps"
         private const val KEY_WORK_PROFILE_CREATED = "work_profile_created"
         private const val KEY_FIRST_LAUNCH = "first_launch"
         
@@ -101,6 +102,26 @@ class PreferencesManager(context: Context) {
 
     fun setManagedProfileBaselineApps(packageNames: Set<String>) {
         prefs.edit().putStringSet(KEY_MANAGED_PROFILE_BASELINE_APPS, packageNames).apply()
+    }
+
+    fun getRemovedHiddenApps(): Set<String> {
+        return prefs.getStringSet(KEY_REMOVED_HIDDEN_APPS, emptySet()) ?: emptySet()
+    }
+
+    fun setRemovedHiddenApps(packageNames: Set<String>) {
+        prefs.edit().putStringSet(KEY_REMOVED_HIDDEN_APPS, packageNames).apply()
+    }
+
+    fun addRemovedHiddenApp(packageName: String) {
+        val removedApps = getRemovedHiddenApps().toMutableSet()
+        removedApps.add(packageName)
+        prefs.edit().putStringSet(KEY_REMOVED_HIDDEN_APPS, removedApps).apply()
+    }
+
+    fun removeRemovedHiddenApp(packageName: String) {
+        val removedApps = getRemovedHiddenApps().toMutableSet()
+        removedApps.remove(packageName)
+        prefs.edit().putStringSet(KEY_REMOVED_HIDDEN_APPS, removedApps).apply()
     }
 
     /**

@@ -41,6 +41,7 @@ class WorkProfileManager(private val context: Context) {
             prefs.setManagedApps(emptySet())
             prefs.setFrozenApps(emptySet())
             prefs.setManagedProfileBaselineApps(emptySet())
+            prefs.setRemovedHiddenApps(emptySet())
         }
         return managedProfile != null
     }
@@ -55,6 +56,7 @@ class WorkProfileManager(private val context: Context) {
             prefs.setManagedApps(emptySet())
             prefs.setFrozenApps(emptySet())
             prefs.setManagedProfileBaselineApps(emptySet())
+            prefs.setRemovedHiddenApps(emptySet())
         }
     }
 
@@ -114,7 +116,10 @@ class WorkProfileManager(private val context: Context) {
 
         repairLegacyManagedStateIfNeeded()
 
-        val unavailablePackages = getVisiblePackagesInManagedProfile() + prefs.getManagedApps() + context.packageName
+        val removedHiddenPackages = prefs.getRemovedHiddenApps()
+        val unavailablePackages = (getVisiblePackagesInManagedProfile() - removedHiddenPackages) +
+            prefs.getManagedApps() +
+            context.packageName
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
 
         return packageManager.queryIntentActivities(launcherIntent, 0)
@@ -152,12 +157,19 @@ class WorkProfileManager(private val context: Context) {
     }
 
     fun markAppManaged(packageName: String) {
+        prefs.removeRemovedHiddenApp(packageName)
         prefs.addManagedApp(packageName)
     }
 
     fun unmarkAppManaged(packageName: String) {
         prefs.removeManagedApp(packageName)
         prefs.removeFrozenApp(packageName)
+    }
+
+    fun markAppRemoved(packageName: String) {
+        prefs.removeManagedApp(packageName)
+        prefs.removeFrozenApp(packageName)
+        prefs.addRemovedHiddenApp(packageName)
     }
 
     fun markAppFrozen(packageName: String) {
