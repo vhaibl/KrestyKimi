@@ -59,11 +59,12 @@ class PreferencesManagerTest {
         `when`(sharedPreferences.getStringSet(eq("frozen_apps"), eq(emptySet<String>())))
             .thenReturn(existing)
         `when`(editor.putStringSet(eq("frozen_apps"), eq(expected))).thenReturn(editor)
+        `when`(editor.commit()).thenReturn(true)
 
         preferencesManager.addFrozenApp("com.example.new")
 
         verify(editor).putStringSet("frozen_apps", expected)
-        verify(editor).apply()
+        verify(editor).commit()
     }
 
     @Test
@@ -74,11 +75,12 @@ class PreferencesManagerTest {
         `when`(sharedPreferences.getStringSet(eq("frozen_apps"), eq(emptySet<String>())))
             .thenReturn(existing)
         `when`(editor.putStringSet(eq("frozen_apps"), eq(expected))).thenReturn(editor)
+        `when`(editor.commit()).thenReturn(true)
 
         preferencesManager.removeFrozenApp("com.example.remove")
 
         verify(editor).putStringSet("frozen_apps", expected)
-        verify(editor).apply()
+        verify(editor).commit()
     }
 
     @Test
@@ -94,11 +96,12 @@ class PreferencesManagerTest {
     @Test
     fun setWorkProfileCreatedStoresMarker() {
         `when`(editor.putBoolean(eq("work_profile_created"), eq(true))).thenReturn(editor)
+        `when`(editor.commit()).thenReturn(true)
 
         preferencesManager.setWorkProfileCreated(true)
 
         verify(editor).putBoolean("work_profile_created", true)
-        verify(editor).apply()
+        verify(editor).commit()
     }
 
     @Test
@@ -109,11 +112,12 @@ class PreferencesManagerTest {
         `when`(sharedPreferences.getStringSet(eq("managed_apps"), eq(emptySet<String>())))
             .thenReturn(existing)
         `when`(editor.putStringSet(eq("managed_apps"), eq(expected))).thenReturn(editor)
+        `when`(editor.commit()).thenReturn(true)
 
         preferencesManager.addManagedApp("com.example.new")
 
         verify(editor).putStringSet("managed_apps", expected)
-        verify(editor).apply()
+        verify(editor).commit()
     }
 
     @Test
@@ -124,10 +128,11 @@ class PreferencesManagerTest {
         `when`(sharedPreferences.getStringSet(eq("managed_apps"), eq(emptySet<String>())))
             .thenReturn(existing)
         `when`(editor.putStringSet(eq("managed_apps"), eq(expected))).thenReturn(editor)
+        `when`(editor.commit()).thenReturn(true)
 
         preferencesManager.removeManagedApp("com.example.remove")
 
         verify(editor).putStringSet("managed_apps", expected)
-        verify(editor).apply()
+        verify(editor).commit()
     }
 }

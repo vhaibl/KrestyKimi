@@ -98,34 +98,32 @@ jobs:
             exit 1
           fi
 
-          if ./gradlew assembleRelease; then
-            release_apk="app/build/outputs/apk/release/app-release.apk"
-            if [[ -f "${release_apk}" ]] && "${apksigner_path}" verify --print-certs "${release_apk}" >/dev/null 2>&1; then
-              apk_cert_sha256="$(
-                "${apksigner_path}" verify --print-certs "${release_apk}" 2>/dev/null \
-                  | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
-                  | head -n 1
-              )"
-            else
-              apk_cert_sha256=""
-            fi
+          ./gradlew assembleRelease
 
-            if [[ -n "${apk_cert_sha256}" && "${apk_cert_sha256}" == "${expected_cert_sha256}" ]]; then
-              echo "variant=release" >> "$GITHUB_OUTPUT"
-              echo "apk_path=${release_apk}" >> "$GITHUB_OUTPUT"
-            else
-              echo "Release APK is missing, unsigned, or signed with an unexpected certificate; falling back to debug APK."
-              ./gradlew assembleDebug
-              debug_apk="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name 'app-debug*.apk' ! -name '*androidTest*' | sort | head -n 1)"
-              echo "variant=debug" >> "$GITHUB_OUTPUT"
-              echo "apk_path=${debug_apk}" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            ./gradlew assembleDebug
-            debug_apk="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name 'app-debug*.apk' ! -name '*androidTest*' | sort | head -n 1)"
-            echo "variant=debug" >> "$GITHUB_OUTPUT"
-            echo "apk_path=${debug_apk}" >> "$GITHUB_OUTPUT"
+          release_apk="app/build/outputs/apk/release/app-release.apk"
+          if [[ ! -f "${release_apk}" ]]; then
+            echo "Signed release APK was not produced at ${release_apk}."
+            exit 1
           fi
+
+          if ! "${apksigner_path}" verify --print-certs "${release_apk}" >/dev/null 2>&1; then
+            echo "Release APK failed apksigner verification."
+            exit 1
+          fi
+
+          apk_cert_sha256="$(
+            "${apksigner_path}" verify --print-certs "${release_apk}" 2>/dev/null \
+              | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
+              | head -n 1
+          )"
+
+          if [[ -z "${apk_cert_sha256}" || "${apk_cert_sha256}" != "${expected_cert_sha256}" ]]; then
+            echo "Release APK certificate does not match ${keystore_path}."
+            exit 1
+          fi
+
+          echo "variant=release" >> "$GITHUB_OUTPUT"
+          echo "apk_path=${release_apk}" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
