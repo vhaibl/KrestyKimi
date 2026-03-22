@@ -39,6 +39,7 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val adminComponent = getComponentName(context)
 
+            Log.d(TAG, "Configuring managed-profile bridge")
             PreferencesManager(context).setWorkProfileCreated(true)
             WorkProfileBridge.syncBridgeComponentState(context)
             dpm.setProfileName(adminComponent, context.getString(R.string.app_name))
@@ -51,6 +52,7 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
             )
 
             dpm.setProfileEnabled(adminComponent)
+            Log.d(TAG, "Managed-profile bridge filters ensured")
             enableSystemApps(context, dpm, adminComponent)
         }
 

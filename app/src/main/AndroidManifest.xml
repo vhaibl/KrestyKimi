@@ -6,6 +6,7 @@
     <permission
         android:name="com.kresty.isolation.permission.MANAGE_WORK_PROFILE"
         android:protectionLevel="signature" />
+    <uses-permission android:name="com.kresty.isolation.permission.MANAGE_WORK_PROFILE" />
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"

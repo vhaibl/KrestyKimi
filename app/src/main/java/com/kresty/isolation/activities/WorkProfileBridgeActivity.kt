@@ -33,6 +33,7 @@ class WorkProfileBridgeActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent) {
         val operation = intent.getStringExtra(WorkProfileBridge.EXTRA_OPERATION).orEmpty()
         val packageName = intent.getStringExtra(WorkProfileBridge.EXTRA_PACKAGE_NAME)
+        Log.d(TAG, "Handling bridge operation=$operation package=$packageName")
 
         if (intent.action != WorkProfileBridge.ACTION_MANAGE) {
             finishWithStatus(operation, packageName, false, "Некорректный bridge intent")

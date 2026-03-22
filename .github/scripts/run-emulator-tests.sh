@@ -40,6 +40,11 @@ timeout 2m adb shell am broadcast --user "$profile_id" \
 
 adb shell pm list users | tee ci-artifacts/pm-list-users.txt
 adb shell dumpsys device_policy | tee ci-artifacts/device-policy.txt
+adb shell cmd package query-intent-activities \
+  --user 0 \
+  -a com.kresty.isolation.action.MANAGE_WORK_PROFILE \
+  -c android.intent.category.DEFAULT | tee ci-artifacts/bridge-query.txt || true
+adb shell dumpsys package com.kresty.isolation | tee ci-artifacts/package-dumpsys.txt || true
 grep -F "$profile_id" ci-artifacts/pm-list-users.txt
 grep -F "com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver" ci-artifacts/device-policy.txt
 if adb shell pm list packages --user "$profile_id" | grep -Fq 'com.kresty.ownerfixture'; then
