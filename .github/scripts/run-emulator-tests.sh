@@ -4,10 +4,11 @@ set -euo pipefail
 mkdir -p ci-artifacts
 adb logcat -c || true
 
-./gradlew assembleDebug assembleDebugAndroidTest
+./gradlew assembleDebug assembleDebugAndroidTest :ownerfixture:assembleDebug
 
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb install --user 0 -r ownerfixture/build/outputs/apk/debug/ownerfixture-debug.apk
 
 timeout 10m adb shell am instrument --user 0 -w \
   -e notClass com.kresty.isolation.activities.ManagedProfileFlowTest \
@@ -37,6 +38,10 @@ adb shell pm list users | tee ci-artifacts/pm-list-users.txt
 adb shell dumpsys device_policy | tee ci-artifacts/device-policy.txt
 grep -F "$profile_id" ci-artifacts/pm-list-users.txt
 grep -F "com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver" ci-artifacts/device-policy.txt
+if adb shell pm list packages --user "$profile_id" | grep -Fq 'com.kresty.ownerfixture'; then
+  echo "Fixture app unexpectedly installed in the managed profile"
+  exit 1
+fi
 
 timeout 10m adb shell am instrument --user 0 -w \
   -e class com.kresty.isolation.activities.ManagedProfileFlowTest \

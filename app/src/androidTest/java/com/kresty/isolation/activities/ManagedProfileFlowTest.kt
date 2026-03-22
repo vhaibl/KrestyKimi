@@ -29,6 +29,10 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ManagedProfileFlowTest {
 
+    companion object {
+        private const val TARGET_PACKAGE = "com.kresty.ownerfixture"
+    }
+
     @Before
     fun clearOwnerPreferences() {
         PreferencesManager(ApplicationProvider.getApplicationContext()).clear()
@@ -38,7 +42,6 @@ class ManagedProfileFlowTest {
     fun managedProfileFlow_addFreezeUnfreezeAndRemoveFirstAvailableApp() {
         val scenario = launch(MainActivity::class.java)
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
-        var selectedPackage: String? = null
 
         try {
             onView(withId(R.id.emptyState)).check(matches(isDisplayed()))
@@ -47,11 +50,14 @@ class ManagedProfileFlowTest {
 
             onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
             onView(withId(R.id.recyclerView)).perform(
-                captureTextFromItemAtPosition(0, R.id.appPackage) { selectedPackage = it }
+                RecyclerViewActions.scrollTo<RecyclerView.ViewHolder>(
+                    hasDescendant(withText(TARGET_PACKAGE))
+                )
             )
+            onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))
             onView(withId(R.id.recyclerView)).perform(
-                RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(
-                    0,
+                RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
+                    hasDescendant(withText(TARGET_PACKAGE)),
                     clickChildViewWithId(R.id.addButton)
                 )
             )
@@ -90,16 +96,15 @@ class ManagedProfileFlowTest {
 
             onView(withId(R.id.fabAddApp)).perform(click())
             onView(withId(R.id.recyclerView)).check(recyclerHasAtLeast(1))
-            val removedPackage = checkNotNull(selectedPackage) { "Expected selected package to be captured" }
             onView(withId(R.id.recyclerView)).perform(
                 RecyclerViewActions.scrollTo<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(removedPackage))
+                    hasDescendant(withText(TARGET_PACKAGE))
                 )
             )
-            onView(withText(removedPackage)).check(matches(isDisplayed()))
+            onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))
             onView(withId(R.id.recyclerView)).perform(
                 RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(removedPackage)),
+                    hasDescendant(withText(TARGET_PACKAGE)),
                     clickChildViewWithId(R.id.addButton)
                 )
             )
@@ -107,10 +112,10 @@ class ManagedProfileFlowTest {
             pressBack()
 
             onView(withId(R.id.appsRecyclerView)).check(recyclerHasAtLeast(1))
-            onView(withText(removedPackage)).check(matches(isDisplayed()))
+            onView(withText(TARGET_PACKAGE)).check(matches(isDisplayed()))
             onView(withId(R.id.appsRecyclerView)).perform(
                 RecyclerViewActions.actionOnItem<RecyclerView.ViewHolder>(
-                    hasDescendant(withText(removedPackage)),
+                    hasDescendant(withText(TARGET_PACKAGE)),
                     clickChildViewWithId(R.id.freezeButton)
                 )
             )
@@ -159,29 +164,4 @@ class ManagedProfileFlowTest {
         }
     }
 
-    private fun captureTextFromItemAtPosition(
-        position: Int,
-        viewId: Int,
-        onTextCaptured: (String) -> Unit
-    ): ViewAction {
-        return object : ViewAction {
-            override fun getConstraints(): Matcher<View> = isDisplayed()
-
-            override fun getDescription(): String = "capture text from child view $viewId at position $position"
-
-            override fun perform(uiController: UiController, view: View) {
-                val recyclerView = view as? RecyclerView
-                    ?: throw AssertionError("Expected RecyclerView but was ${view.javaClass.name}")
-                recyclerView.scrollToPosition(position)
-                uiController.loopMainThreadUntilIdle()
-                val holder = recyclerView.findViewHolderForAdapterPosition(position)
-                    ?: throw AssertionError("No ViewHolder at position $position")
-                val child = holder.itemView.findViewById<View>(viewId)
-                    ?: throw AssertionError("No child view with id $viewId at position $position")
-                val text = (child as? android.widget.TextView)?.text?.toString()
-                    ?: throw AssertionError("Expected TextView for id $viewId")
-                onTextCaptured(text)
-            }
-        }
-    }
 }
