@@ -86,16 +86,31 @@ jobs:
       - name: Accept Android SDK licenses and install packages
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-33" \
+            "platforms;android-29" \
+            "build-tools;33.0.2" \
+            "emulator" \
+            "system-images;android-29;default;x86_64"
 
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
+
+      - name: Enable KVM acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Run instrumented tests on API 29 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
           arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           profile: pixel_4
           script: bash .github/scripts/run-emulator-tests.sh
 
