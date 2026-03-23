@@ -126,14 +126,41 @@ class ManagedProfileFlowTest {
     }
 
     private fun maybeClickInstallerPrompt() {
+        val installerPackages = listOf(
+            "com.android.packageinstaller",
+            "com.google.android.packageinstaller",
+            "com.android.permissioncontroller"
+        )
+        val positiveKeywords = listOf(
+            "install",
+            "continue",
+            "next",
+            "done",
+            "allow",
+            "open",
+            "ok",
+            "установ",
+            "продолж",
+            "далее",
+            "готов",
+            "разреш"
+        )
+        val negativeKeywords = listOf("cancel", "отмен", "назад", "back", "deny")
         val candidateButtons = listOf(
             By.res("com.android.permissioncontroller", "ok_button"),
             By.res("com.android.permissioncontroller", "continue_button"),
+            By.res("com.android.permissioncontroller", "permission_allow_button"),
             By.res("com.android.packageinstaller", "ok_button"),
+            By.res("com.android.packageinstaller", "continue_button"),
+            By.res("com.android.packageinstaller", "install_button"),
             By.res("com.google.android.packageinstaller", "ok_button"),
+            By.res("com.google.android.packageinstaller", "continue_button"),
+            By.res("com.google.android.packageinstaller", "install_button"),
             By.res("android", "button1"),
             By.text("Install"),
             By.text("Установить"),
+            By.text("Continue"),
+            By.text("Продолжить"),
             By.text("Done"),
             By.text("Готово")
         )
@@ -142,6 +169,33 @@ class ManagedProfileFlowTest {
             val button = device.findObject(selector)
             if (button != null && button.isEnabled) {
                 button.click()
+                device.waitForIdle()
+                SystemClock.sleep(500)
+                return
+            }
+        }
+
+        for (installerPackage in installerPackages) {
+            val buttons = device.findObjects(By.pkg(installerPackage).clickable(true))
+                .filter { it.isEnabled }
+            val preferredButton = buttons.firstOrNull { button ->
+                val text = listOfNotNull(button.text, button.contentDescription)
+                    .joinToString(" ")
+                    .lowercase()
+                positiveKeywords.any { it in text } && negativeKeywords.none { it in text }
+            }
+            val fallbackButton = buttons
+                .filterNot { button ->
+                    val text = listOfNotNull(button.text, button.contentDescription)
+                        .joinToString(" ")
+                        .lowercase()
+                    negativeKeywords.any { it in text }
+                }
+                .maxByOrNull { button -> button.visibleBounds.right + button.visibleBounds.bottom }
+
+            val buttonToClick = preferredButton ?: fallbackButton
+            if (buttonToClick != null) {
+                buttonToClick.click()
                 device.waitForIdle()
                 SystemClock.sleep(500)
                 return

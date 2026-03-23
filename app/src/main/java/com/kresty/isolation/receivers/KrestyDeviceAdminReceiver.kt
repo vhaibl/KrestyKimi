@@ -5,6 +5,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.UserManager
 import android.util.Log
 import android.widget.Toast
 import com.kresty.isolation.R
@@ -51,6 +52,8 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
                 // Parent-profile launches must resolve into the managed profile.
                 DevicePolicyManager.FLAG_MANAGED_CAN_ACCESS_PARENT
             )
+            dpm.clearUserRestriction(adminComponent, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES)
+            dpm.clearUserRestriction(adminComponent, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY)
 
             dpm.setProfileEnabled(adminComponent)
             Log.d(TAG, "Managed-profile bridge filters ensured")
