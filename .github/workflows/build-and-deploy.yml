@@ -73,6 +73,7 @@ jobs:
         with:
           api-level: 29
           arch: x86_64
+          disable-animations: true
           profile: pixel_4
           script: bash .github/scripts/run-emulator-tests.sh
 
