@@ -14,6 +14,7 @@ import android.os.UserHandle
 import android.util.Log
 import com.kresty.isolation.model.AppInfo
 import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
+import kotlin.math.max
 
 class WorkProfileManager(private val context: Context) {
 
@@ -73,8 +74,8 @@ class WorkProfileManager(private val context: Context) {
                 IntentFilter(WorkProfileBridge.ACTION_MANAGE).apply {
                     addCategory(Intent.CATEGORY_DEFAULT)
                 },
-                // Owner-profile launches must be forwarded into the managed profile.
-                DevicePolicyManager.FLAG_MANAGED_CAN_ACCESS_PARENT
+                // Parent-profile launches must resolve into the managed profile.
+                DevicePolicyManager.FLAG_PARENT_CAN_ACCESS_MANAGED
             )
         } catch (e: Exception) {
             Log.w(TAG, "Unable to ensure cross-profile filters: ${e.message}")
@@ -295,6 +296,44 @@ class WorkProfileManager(private val context: Context) {
     fun getIsolatedAppsCount(): Int = getWorkProfileApps().size
 
     fun getFrozenAppsCount(): Int = getWorkProfileApps().count { it.isFrozen }
+
+    fun hasLiveManagedProfile(): Boolean {
+        return isProfileOwner() || getManagedProfileHandle() != null
+    }
+
+    fun isPackageVisibleInManagedProfile(packageName: String): Boolean {
+        return packageName in getVisiblePackagesInManagedProfile()
+    }
+
+    fun waitForManagedProfilePackageVisibility(
+        packageName: String,
+        expectedVisible: Boolean,
+        timeoutMs: Long = 5_000L,
+        pollIntervalMs: Long = 250L
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + max(timeoutMs, pollIntervalMs)
+        while (System.currentTimeMillis() <= deadline) {
+            if (isPackageVisibleInManagedProfile(packageName) == expectedVisible) {
+                return true
+            }
+            Thread.sleep(pollIntervalMs)
+        }
+        return isPackageVisibleInManagedProfile(packageName) == expectedVisible
+    }
+
+    fun waitForManagedProfileDeletion(
+        timeoutMs: Long = 8_000L,
+        pollIntervalMs: Long = 250L
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + max(timeoutMs, pollIntervalMs)
+        while (System.currentTimeMillis() <= deadline) {
+            if (!hasLiveManagedProfile()) {
+                return true
+            }
+            Thread.sleep(pollIntervalMs)
+        }
+        return !hasLiveManagedProfile()
+    }
 
     private fun buildDisplayAppInfo(packageName: String, isInstalledInWorkProfile: Boolean = true): AppInfo? {
         return try {

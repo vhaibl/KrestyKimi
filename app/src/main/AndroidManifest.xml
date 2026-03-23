@@ -72,16 +72,24 @@
         <activity
             android:name=".activities.WorkProfileBridgeActivity"
             android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@style/Theme.Kresty">
+        </activity>
+
+        <activity-alias
+            android:name=".activities.WorkProfileBridgeAlias"
+            android:excludeFromRecents="true"
             android:exported="true"
             android:launchMode="singleTask"
             android:noHistory="true"
-            android:permission="com.kresty.isolation.permission.MANAGE_WORK_PROFILE"
+            android:targetActivity=".activities.WorkProfileBridgeActivity"
             android:theme="@style/Theme.Kresty">
             <intent-filter>
                 <action android:name="com.kresty.isolation.action.MANAGE_WORK_PROFILE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-        </activity>
+        </activity-alias>
 
         <!-- Subscription Activity - ОТКЛЮЧЕНО -->
         <!--

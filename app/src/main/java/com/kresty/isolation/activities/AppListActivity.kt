@@ -20,6 +20,7 @@ import com.kresty.isolation.utils.WorkProfileBridge
 import com.kresty.isolation.utils.WorkProfileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,10 +40,12 @@ class AppListActivity : AppCompatActivity() {
     private var currentApps: List<AppInfo> = emptyList()
     private var pendingPackageName: String? = null
     private var loadAppsJob: Job? = null
+    private var reconcileCloneJob: Job? = null
 
     private val cloneAppLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        reconcileCloneJob?.cancel()
         handleCloneResult(result.resultCode, result.data)
         loadApps()
     }
@@ -77,8 +80,16 @@ class AppListActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        reconcileCloneJob?.cancel()
         loadAppsJob?.cancel()
         super.onDestroy()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (pendingPackageName != null) {
+            reconcilePendingClone()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -194,6 +205,44 @@ class AppListActivity : AppCompatActivity() {
         }
 
         pendingPackageName = null
+    }
+
+    private fun reconcilePendingClone() {
+        if (reconcileCloneJob?.isActive == true) {
+            return
+        }
+
+        reconcileCloneJob = lifecycleScope.launch {
+            val packageName = pendingPackageName ?: return@launch
+            delay(500)
+
+            if (pendingPackageName != packageName || isFinishing || isDestroyed) {
+                return@launch
+            }
+
+            val success = withContext(Dispatchers.IO) {
+                workProfileManager.waitForManagedProfilePackageVisibility(
+                    packageName = packageName,
+                    expectedVisible = true
+                )
+            }
+
+            if (!isActive || isFinishing || isDestroyed || pendingPackageName != packageName) {
+                return@launch
+            }
+
+            if (success) {
+                workProfileManager.markAppManaged(packageName)
+                Toast.makeText(this@AppListActivity, R.string.success_app_cloned, Toast.LENGTH_SHORT).show()
+                pendingPackageName = null
+                setResult(Activity.RESULT_OK)
+                finish()
+            } else {
+                pendingPackageName = null
+                Toast.makeText(this@AppListActivity, R.string.error_generic, Toast.LENGTH_LONG).show()
+                loadApps()
+            }
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {

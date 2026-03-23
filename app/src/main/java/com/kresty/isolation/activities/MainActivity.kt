@@ -22,6 +22,7 @@ import com.kresty.isolation.utils.WorkProfileBridge
 import com.kresty.isolation.utils.WorkProfileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,10 +43,12 @@ class MainActivity : AppCompatActivity() {
     private var pendingPackageName: String? = null
     private var isolatedAppsLoadJob: Job? = null
     private var refreshUiJob: Job? = null
+    private var reconcileOperationJob: Job? = null
 
     private val workProfileActionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        reconcileOperationJob?.cancel()
         handleProfileOperationStatus(result.resultCode, result.data)
         updateUI()
     }
@@ -68,9 +71,13 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateUI()
+        if (pendingOperation != null) {
+            reconcilePendingOperation()
+        }
     }
 
     override fun onDestroy() {
+        reconcileOperationJob?.cancel()
         refreshUiJob?.cancel()
         isolatedAppsLoadJob?.cancel()
         super.onDestroy()
@@ -334,6 +341,73 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Рабочий профиль недоступен", Toast.LENGTH_LONG).show()
             pendingOperation = null
             pendingPackageName = null
+        }
+    }
+
+    private fun reconcilePendingOperation() {
+        if (reconcileOperationJob?.isActive == true) {
+            return
+        }
+
+        reconcileOperationJob = lifecycleScope.launch {
+            val operation = pendingOperation ?: return@launch
+            val packageName = pendingPackageName
+            delay(500)
+
+            if (pendingOperation != operation || isFinishing || isDestroyed) {
+                return@launch
+            }
+
+            val success = withContext(Dispatchers.IO) {
+                when (operation) {
+                    WorkProfileBridge.OP_FREEZE,
+                    WorkProfileBridge.OP_REMOVE -> {
+                        packageName != null && workProfileManager.waitForManagedProfilePackageVisibility(
+                            packageName = packageName,
+                            expectedVisible = false
+                        )
+                    }
+                    WorkProfileBridge.OP_UNFREEZE -> {
+                        packageName != null && workProfileManager.waitForManagedProfilePackageVisibility(
+                            packageName = packageName,
+                            expectedVisible = true
+                        )
+                    }
+                    WorkProfileBridge.OP_DELETE_PROFILE -> workProfileManager.waitForManagedProfileDeletion()
+                    else -> false
+                }
+            }
+
+            if (!isActive || isFinishing || isDestroyed || pendingOperation != operation) {
+                return@launch
+            }
+
+            if (success) {
+                when (operation) {
+                    WorkProfileBridge.OP_FREEZE -> {
+                        packageName?.let(workProfileManager::markAppFrozen)
+                        Toast.makeText(this@MainActivity, R.string.success_app_frozen, Toast.LENGTH_SHORT).show()
+                    }
+                    WorkProfileBridge.OP_UNFREEZE -> {
+                        packageName?.let(workProfileManager::markAppUnfrozen)
+                        Toast.makeText(this@MainActivity, R.string.success_app_unfrozen, Toast.LENGTH_SHORT).show()
+                    }
+                    WorkProfileBridge.OP_REMOVE -> {
+                        packageName?.let(workProfileManager::markAppRemoved)
+                        Toast.makeText(this@MainActivity, R.string.success_app_removed, Toast.LENGTH_SHORT).show()
+                    }
+                    WorkProfileBridge.OP_DELETE_PROFILE -> {
+                        prefs.clear()
+                        Toast.makeText(this@MainActivity, "Рабочий профиль удален", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                Toast.makeText(this@MainActivity, R.string.error_generic, Toast.LENGTH_LONG).show()
+            }
+
+            pendingOperation = null
+            pendingPackageName = null
+            updateUI()
         }
     }
 

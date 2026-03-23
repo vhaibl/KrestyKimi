@@ -9,8 +9,8 @@ import com.kresty.isolation.activities.WorkProfileBridgeActivity
 import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
 
 object WorkProfileBridge {
-    const val PERMISSION_MANAGE_WORK_PROFILE = "com.kresty.isolation.permission.MANAGE_WORK_PROFILE"
     const val ACTION_MANAGE = "com.kresty.isolation.action.MANAGE_WORK_PROFILE"
+    private const val BRIDGE_ALIAS_CLASS_NAME = "com.kresty.isolation.activities.WorkProfileBridgeAlias"
 
     const val EXTRA_OPERATION = "extra_operation"
     const val EXTRA_PACKAGE_NAME = "extra_package_name"
@@ -39,17 +39,26 @@ object WorkProfileBridge {
     }
 
     fun syncBridgeComponentState(context: Context) {
-        val component = ComponentName(context, WorkProfileBridgeActivity::class.java)
+        val activityComponent = ComponentName(context, WorkProfileBridgeActivity::class.java)
+        val aliasComponent = ComponentName(context.packageName, BRIDGE_ALIAS_CLASS_NAME)
         val enabledState = if (KrestyDeviceAdminReceiver.isProfileOwner(context)) {
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         } else {
             PackageManager.COMPONENT_ENABLED_STATE_DISABLED
         }
 
-        if (context.packageManager.getComponentEnabledSetting(component) != enabledState) {
+        if (context.packageManager.getComponentEnabledSetting(aliasComponent) != enabledState) {
             context.packageManager.setComponentEnabledSetting(
-                component,
+                aliasComponent,
                 enabledState,
+                PackageManager.DONT_KILL_APP
+            )
+        }
+
+        if (context.packageManager.getComponentEnabledSetting(activityComponent) != PackageManager.COMPONENT_ENABLED_STATE_DEFAULT) {
+            context.packageManager.setComponentEnabledSetting(
+                activityComponent,
+                PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
                 PackageManager.DONT_KILL_APP
             )
         }
