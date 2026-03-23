@@ -49,7 +49,7 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
                 adminComponent,
                 WorkProfileBridge.buildManageIntentFilter(),
                 // Parent-profile launches must resolve into the managed profile.
-                DevicePolicyManager.FLAG_PARENT_CAN_ACCESS_MANAGED
+                DevicePolicyManager.FLAG_MANAGED_CAN_ACCESS_PARENT
             )
 
             dpm.setProfileEnabled(adminComponent)
