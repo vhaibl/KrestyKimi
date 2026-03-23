@@ -40,7 +40,7 @@ timeout 2m adb shell am broadcast --user "$profile_id" \
 
 adb shell pm list users | tee ci-artifacts/pm-list-users.txt
 adb shell dumpsys device_policy | tee ci-artifacts/device-policy.txt
-adb shell cmd package query-intent-activities \
+adb shell pm resolve-activity \
   --user 0 \
   -a com.kresty.isolation.action.MANAGE_WORK_PROFILE \
   -c android.intent.category.DEFAULT | tee ci-artifacts/bridge-query.txt || true

@@ -48,7 +48,8 @@ class KrestyDeviceAdminReceiver : DeviceAdminReceiver() {
             dpm.addCrossProfileIntentFilter(
                 adminComponent,
                 WorkProfileBridge.buildManageIntentFilter(),
-                DevicePolicyManager.FLAG_PARENT_CAN_ACCESS_MANAGED
+                // Owner-profile activity starts must be resolved in the managed profile.
+                DevicePolicyManager.FLAG_MANAGED_CAN_ACCESS_PARENT
             )
 
             dpm.setProfileEnabled(adminComponent)

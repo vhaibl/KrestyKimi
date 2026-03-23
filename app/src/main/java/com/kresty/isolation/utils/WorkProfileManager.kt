@@ -73,7 +73,8 @@ class WorkProfileManager(private val context: Context) {
                 IntentFilter(WorkProfileBridge.ACTION_MANAGE).apply {
                     addCategory(Intent.CATEGORY_DEFAULT)
                 },
-                DevicePolicyManager.FLAG_PARENT_CAN_ACCESS_MANAGED
+                // Owner-profile launches must be forwarded into the managed profile.
+                DevicePolicyManager.FLAG_MANAGED_CAN_ACCESS_PARENT
             )
         } catch (e: Exception) {
             Log.w(TAG, "Unable to ensure cross-profile filters: ${e.message}")
