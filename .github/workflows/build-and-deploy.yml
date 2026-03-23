@@ -59,6 +59,14 @@ jobs:
             app/build/test-results
           if-no-files-found: warn
 
+      - name: Enable KVM acceleration
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Run instrumented tests on API 29 emulator
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_tests }}
         uses: reactivecircus/android-emulator-runner@v2
