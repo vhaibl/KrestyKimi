@@ -41,7 +41,13 @@ jobs:
       - name: Accept Android SDK licenses and install packages
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-33" \
+            "platforms;android-29" \
+            "build-tools;33.0.2" \
+            "emulator" \
+            "system-images;android-29;default;x86_64"
 
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
