@@ -83,6 +83,7 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:noHistory="true"
+            android:permission="com.kresty.isolation.permission.MANAGE_WORK_PROFILE"
             android:targetActivity=".activities.WorkProfileBridgeActivity"
             android:theme="@style/Theme.Kresty">
             <intent-filter>
