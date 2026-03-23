@@ -223,7 +223,8 @@ class AppListActivity : AppCompatActivity() {
             val success = withContext(Dispatchers.IO) {
                 workProfileManager.waitForManagedProfilePackageVisibility(
                     packageName = packageName,
-                    expectedVisible = true
+                    expectedVisible = true,
+                    timeoutMs = 30_000L
                 )
             }
 

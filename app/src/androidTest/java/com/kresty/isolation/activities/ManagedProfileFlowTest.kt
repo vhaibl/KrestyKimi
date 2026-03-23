@@ -1,6 +1,7 @@
 package com.kresty.isolation.activities
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario.launch
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -50,7 +51,7 @@ class ManagedProfileFlowTest {
             scrollRecyclerToText(appPackage, "recyclerView", TARGET_PACKAGE)
             clickChildInRowByText(TARGET_PACKAGE, "addButton")
 
-            waitForObject(By.res(appPackage, "appsRecyclerView"))
+            waitForCloneCompletion(appPackage)
             waitForObject(By.text(TARGET_PACKAGE))
             clickChildInRowByText(TARGET_PACKAGE, "freezeButton")
             waitForObject(By.text(appContext.getString(R.string.freezed_apps_count, 1)))
@@ -67,7 +68,7 @@ class ManagedProfileFlowTest {
             scrollRecyclerToText(appPackage, "recyclerView", TARGET_PACKAGE)
             clickChildInRowByText(TARGET_PACKAGE, "addButton")
 
-            waitForObject(By.res(appPackage, "appsRecyclerView"))
+            waitForCloneCompletion(appPackage)
             waitForObject(By.text(TARGET_PACKAGE))
             clickChildInRowByText(TARGET_PACKAGE, "freezeButton")
             waitForObject(By.text(appContext.getString(R.string.freezed_apps_count, 1)))
@@ -84,6 +85,19 @@ class ManagedProfileFlowTest {
     private fun clickObject(selector: androidx.test.uiautomator.BySelector) {
         waitForObject(selector).click()
         device.waitForIdle()
+    }
+
+    private fun waitForCloneCompletion(appPackage: String) {
+        val deadline = SystemClock.uptimeMillis() + TIMEOUT_MS
+        while (SystemClock.uptimeMillis() < deadline) {
+            maybeClickInstallerPrompt()
+            val appsRecycler = device.findObject(By.res(appPackage, "appsRecyclerView"))
+            if (appsRecycler != null) {
+                return
+            }
+            SystemClock.sleep(500)
+        }
+        throw AssertionError("Timed out waiting for cloned app list to appear")
     }
 
     private fun scrollRecyclerToText(appPackage: String, recyclerId: String, text: String) {
@@ -109,5 +123,29 @@ class ManagedProfileFlowTest {
         }
 
         throw AssertionError("Could not find child $childRes for row containing $text")
+    }
+
+    private fun maybeClickInstallerPrompt() {
+        val candidateButtons = listOf(
+            By.res("com.android.permissioncontroller", "ok_button"),
+            By.res("com.android.permissioncontroller", "continue_button"),
+            By.res("com.android.packageinstaller", "ok_button"),
+            By.res("com.google.android.packageinstaller", "ok_button"),
+            By.res("android", "button1"),
+            By.text("Install"),
+            By.text("Установить"),
+            By.text("Done"),
+            By.text("Готово")
+        )
+
+        for (selector in candidateButtons) {
+            val button = device.findObject(selector)
+            if (button != null && button.isEnabled) {
+                button.click()
+                device.waitForIdle()
+                SystemClock.sleep(500)
+                return
+            }
+        }
     }
 }

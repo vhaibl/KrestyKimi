@@ -17,6 +17,8 @@ object WorkProfileBridge {
     const val EXTRA_SUCCESS = "extra_success"
     const val EXTRA_IS_SYSTEM_APP = "extra_is_system_app"
     const val EXTRA_ERROR_MESSAGE = "extra_error_message"
+    const val EXTRA_SOURCE_APK_PATH = "extra_source_apk_path"
+    const val EXTRA_SPLIT_APK_PATHS = "extra_split_apk_paths"
 
     const val OP_CLONE = "clone"
     const val OP_REMOVE = "remove"

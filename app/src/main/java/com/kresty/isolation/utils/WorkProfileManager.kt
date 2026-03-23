@@ -6,14 +6,17 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInstaller
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.content.IntentSender
 import android.os.Build
 import android.os.Process
 import android.os.UserHandle
 import android.util.Log
 import com.kresty.isolation.model.AppInfo
 import com.kresty.isolation.receivers.KrestyDeviceAdminReceiver
+import java.io.File
 import kotlin.math.max
 
 class WorkProfileManager(private val context: Context) {
@@ -162,6 +165,17 @@ class WorkProfileManager(private val context: Context) {
 
         return WorkProfileBridge.buildManageIntent(action, app.packageName).apply {
             putExtra(WorkProfileBridge.EXTRA_IS_SYSTEM_APP, app.isSystemApp)
+            if (action == WorkProfileBridge.OP_CLONE && !app.isSystemApp) {
+                getApplicationInfoForCurrentProfile(app.packageName)?.let { sourceInfo ->
+                    putExtra(
+                        WorkProfileBridge.EXTRA_SOURCE_APK_PATH,
+                        sourceInfo.publicSourceDir ?: sourceInfo.sourceDir
+                    )
+                    sourceInfo.splitSourceDirs?.takeIf { it.isNotEmpty() }?.let { splitApks ->
+                        putExtra(WorkProfileBridge.EXTRA_SPLIT_APK_PATHS, splitApks)
+                    }
+                }
+            }
         }
     }
 
@@ -204,6 +218,32 @@ class WorkProfileManager(private val context: Context) {
             cloneSystemAppToCurrentProfile(packageName)
         } else {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && installExistingPackage(packageName)
+        }
+    }
+
+    fun installPackageFromApkPaths(
+        packageName: String,
+        sourceApkPath: String,
+        splitApkPaths: Array<String>?,
+        statusReceiver: IntentSender
+    ): Boolean {
+        return try {
+            val packageInstaller = packageManager.packageInstaller
+            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(packageName)
+            }
+            val sessionId = packageInstaller.createSession(params)
+            packageInstaller.openSession(sessionId).use { session ->
+                writeApkToSession(session, sourceApkPath)
+                splitApkPaths.orEmpty().forEach { splitApkPath ->
+                    writeApkToSession(session, splitApkPath)
+                }
+                session.commit(statusReceiver)
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to install APK for $packageName: ${e.message}", e)
+            false
         }
     }
 
@@ -285,12 +325,9 @@ class WorkProfileManager(private val context: Context) {
     }
 
     fun isSystemApp(packageName: String): Boolean {
-        return try {
-            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+        return getApplicationInfoForCurrentProfile(packageName)?.let { appInfo ->
             (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-        } catch (_: PackageManager.NameNotFoundException) {
-            false
-        }
+        } ?: false
     }
 
     fun getIsolatedAppsCount(): Int = getWorkProfileApps().size
@@ -372,6 +409,24 @@ class WorkProfileManager(private val context: Context) {
         return packageManager.queryIntentActivities(launcherIntent, 0)
             .map { it.activityInfo.packageName }
             .toSet()
+    }
+
+    private fun getApplicationInfoForCurrentProfile(packageName: String): ApplicationInfo? {
+        return try {
+            packageManager.getApplicationInfo(packageName, PackageManager.MATCH_UNINSTALLED_PACKAGES)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun writeApkToSession(session: PackageInstaller.Session, apkPath: String) {
+        val apkFile = File(apkPath)
+        apkFile.inputStream().use { input ->
+            session.openWrite(apkFile.name, 0, apkFile.length()).use { output ->
+                input.copyTo(output)
+                session.fsync(output)
+            }
+        }
     }
 
     private fun getManagedProfileHandle(): UserHandle? {

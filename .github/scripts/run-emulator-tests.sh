@@ -30,6 +30,8 @@ timeout 2m adb shell am start-user -w "$profile_id"
 timeout 2m adb shell pm install-existing --user "$profile_id" com.kresty.isolation
 timeout 2m adb shell dpm set-profile-owner --user "$profile_id" \
   'com.kresty.isolation/.receivers.KrestyDeviceAdminReceiver'
+timeout 2m adb shell appops set --user "$profile_id" \
+  com.kresty.isolation REQUEST_INSTALL_PACKAGES allow || true
 # Start the app inside the managed profile so its Application can finalize
 # bridge/filter setup even when the shell broadcast below is rejected.
 timeout 2m adb shell am start --user "$profile_id" -W \
